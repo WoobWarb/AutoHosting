@@ -5,9 +5,24 @@ const multer = require('multer');
 const AdmZip = require('adm-zip');
 const slugify = require('slugify');
 const cors = require('cors');
+const { exec } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// API: GitHub Auto Deploy Webhook
+app.post('/api/webhook/deploy', (req, res) => {
+  console.log('🔄 Webhook received: Pulling latest changes from GitHub...');
+  
+  exec('git pull origin main && npm install --production && pm2 restart html-uploader', { cwd: __dirname }, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Auto Deploy Error: ${error.message}`);
+      return res.status(500).json({ success: false, message: error.message, stderr });
+    }
+    console.log(`Auto Deploy Success: ${stdout}`);
+    return res.json({ success: true, message: 'Deployed successfully!', stdout });
+  });
+});
 
 // Directories
 const PROJECTS_DIR = path.join(__dirname, 'projects');
