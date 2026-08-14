@@ -92,6 +92,112 @@ function getFolderStats(dirPath) {
   return { totalSize, fileCount };
 }
 
+// Spaces Registry Helper
+const SPACES_FILE = path.join(PROJECTS_DIR, '_spaces.json');
+function getStoredSpaces() {
+  if (fs.existsSync(SPACES_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(SPACES_FILE, 'utf8'));
+      if (Array.isArray(data) && data.length > 0) return data;
+    } catch(e) {}
+  }
+  return ['General'];
+}
+
+function saveStoredSpaces(spaces) {
+  try {
+    fs.writeFileSync(SPACES_FILE, JSON.stringify(spaces, null, 2));
+  } catch(e) {}
+}
+
+// API: Get Spaces with Project Counts
+app.get('/api/spaces', (req, res) => {
+  try {
+    const storedSpaces = getStoredSpaces();
+    const spaceSet = new Set(storedSpaces);
+    
+    // Count projects per space
+    const counts = {};
+    storedSpaces.forEach(s => counts[s] = 0);
+
+    const entries = fs.readdirSync(PROJECTS_DIR, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const metaPath = path.join(PROJECTS_DIR, entry.name, '.metadata.json');
+        if (fs.existsSync(metaPath)) {
+          try {
+            const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+            const sp = meta.space || 'General';
+            spaceSet.add(sp);
+            counts[sp] = (counts[sp] || 0) + 1;
+          } catch(e) {}
+        }
+      }
+    }
+
+    const spacesList = Array.from(spaceSet).map(name => ({
+      name,
+      count: counts[name] || 0
+    }));
+
+    res.json({ success: true, spaces: spacesList });
+  } catch(err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API: Create New Space
+app.post('/api/spaces', (req, res) => {
+  try {
+    const rawName = (req.body.name || '').trim();
+    if (!rawName) {
+      return res.status(400).json({ success: false, message: 'Space name cannot be empty.' });
+    }
+    const spaces = getStoredSpaces();
+    if (!spaces.includes(rawName)) {
+      spaces.push(rawName);
+      saveStoredSpaces(spaces);
+    }
+    res.json({ success: true, message: `Space '${rawName}' created successfully.`, spaces });
+  } catch(err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API: Delete Space
+app.delete('/api/spaces/:name', (req, res) => {
+  try {
+    const target = req.params.name;
+    if (target === 'General') {
+      return res.status(400).json({ success: false, message: 'Cannot delete default General space.' });
+    }
+    let spaces = getStoredSpaces().filter(s => s !== target);
+    if (spaces.length === 0) spaces = ['General'];
+    saveStoredSpaces(spaces);
+
+    // Reassign projects from deleted space to 'General'
+    const entries = fs.readdirSync(PROJECTS_DIR, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const metaPath = path.join(PROJECTS_DIR, entry.name, '.metadata.json');
+        if (fs.existsSync(metaPath)) {
+          try {
+            const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+            if (meta.space === target) {
+              meta.space = 'General';
+              fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+            }
+          } catch(e) {}
+        }
+      }
+    }
+
+    res.json({ success: true, message: `Space '${target}' removed. Projects moved to General.` });
+  } catch(err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // API: Get List of Deployed Projects
 app.get('/api/projects', (req, res) => {
   try {
@@ -127,9 +233,12 @@ app.get('/api/projects', (req, res) => {
           title: metadata.title || slug,
           description: metadata.description || 'No description provided.',
           author: metadata.author || { name: 'Anonymous', email: '', picture: '' },
+          space: metadata.space || 'General',
+          viewsCount: metadata.viewsCount || 0,
           url: `/${slug}/${hasIndexHtml ? '' : mainFile}`,
           directUrl: `/${slug}`,
           createdAt: metadata.createdAt || dirStat.birthtime || dirStat.mtime,
+          updatedAt: metadata.updatedAt || metadata.createdAt || dirStat.mtime,
           originalFileName: metadata.originalFileName || 'N/A',
           fileType: metadata.fileType || 'html',
           fileCount: stats.fileCount,
@@ -140,7 +249,7 @@ app.get('/api/projects', (req, res) => {
     }
 
     // Sort newest first
-    projects.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    projects.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     res.json({ success: true, projects });
   } catch (err) {
     console.error('Error fetching projects:', err);
@@ -198,7 +307,9 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     const originalName = req.file.originalname;
     const ext = path.extname(originalName).toLowerCase();
     const rawCustomSlug = req.body.slug;
+    const rawCustomTitle = req.body.title;
     const description = (req.body.description || '').trim();
+    const space = (req.body.space || 'General').trim();
     
     // Parse author JSON payload
     let author = { name: 'Anonymous', email: '', picture: '' };
@@ -269,8 +380,10 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     const stats = getFolderStats(targetPath);
     const metadata = {
       slug: targetSlug,
-      title: rawCustomSlug ? rawCustomSlug.trim() : targetSlug,
+      title: rawCustomTitle ? rawCustomTitle.trim() : (rawCustomSlug ? rawCustomSlug.trim() : targetSlug),
       description: description || 'No description provided.',
+      space: space || 'General',
+      viewsCount: 0,
       author: {
         name: author.name || 'Anonymous',
         email: author.email || '',
@@ -280,6 +393,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
       originalFileName: originalName,
       fileType,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       sizeBytes: stats.totalSize,
       fileCount: stats.fileCount
     };
@@ -305,6 +419,103 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     }
     console.error('Upload Error:', err);
     return res.status(500).json({ success: false, message: 'Upload failed: ' + err.message });
+  }
+});
+
+// API: Re-upload / Update Project Files or Metadata
+app.post('/api/projects/:slug/update', upload.single('file'), (req, res) => {
+  const tempFilePath = req.file ? req.file.path : null;
+
+  try {
+    const rawSlug = req.params.slug;
+    const safeSlug = path.basename(rawSlug);
+    const targetPath = path.join(PROJECTS_DIR, safeSlug);
+    const metaPath = path.join(targetPath, '.metadata.json');
+
+    if (!fs.existsSync(targetPath)) {
+      if (tempFilePath && fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+      return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+
+    let metadata = {};
+    if (fs.existsSync(metaPath)) {
+      try {
+        metadata = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+      } catch (e) {}
+    }
+
+    // Authorization check
+    const reqUserEmail = req.body.userEmail || req.headers['x-user-email'] || '';
+    const projectAuthorEmail = (metadata.author && metadata.author.email) ? metadata.author.email : '';
+
+    if (projectAuthorEmail && reqUserEmail && projectAuthorEmail.toLowerCase() !== reqUserEmail.toLowerCase()) {
+      if (tempFilePath && fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+      return res.status(403).json({
+        success: false,
+        message: `Permission denied: Only ${projectAuthorEmail} can update this project.`
+      });
+    }
+
+    // Update File if provided
+    if (req.file) {
+      const originalName = req.file.originalname;
+      const ext = path.extname(originalName).toLowerCase();
+
+      // Clear existing project files except .metadata.json
+      const existingItems = fs.readdirSync(targetPath);
+      for (const item of existingItems) {
+        if (item !== '.metadata.json') {
+          fs.rmSync(path.join(targetPath, item), { recursive: true, force: true });
+        }
+      }
+
+      if (ext === '.zip') {
+        metadata.fileType = 'zip';
+        const zip = new AdmZip(tempFilePath);
+        zip.extractAllTo(targetPath, true);
+
+        // Flatten subfolder if zip contained a single root directory
+        const contents = fs.readdirSync(targetPath).filter(i => i !== '.metadata.json');
+        if (contents.length === 1) {
+          const singleSubfolder = path.join(targetPath, contents[0]);
+          if (fs.statSync(singleSubfolder).isDirectory()) {
+            const subContents = fs.readdirSync(singleSubfolder);
+            for (const item of subContents) {
+              fs.renameSync(path.join(singleSubfolder, item), path.join(targetPath, item));
+            }
+            fs.rmdirSync(singleSubfolder);
+          }
+        }
+      } else if (ext === '.html' || ext === '.htm') {
+        metadata.fileType = 'html';
+        const destPath = path.join(targetPath, 'index.html');
+        fs.copyFileSync(tempFilePath, destPath);
+      }
+      metadata.originalFileName = originalName;
+      if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+    }
+
+    // Update fields
+    if (req.body.title) metadata.title = req.body.title.trim();
+    if (req.body.description !== undefined) metadata.description = req.body.description.trim();
+    if (req.body.space) metadata.space = req.body.space.trim();
+    metadata.updatedAt = new Date().toISOString();
+
+    const stats = getFolderStats(targetPath);
+    metadata.sizeBytes = stats.totalSize;
+    metadata.fileCount = stats.fileCount;
+
+    fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2));
+
+    return res.json({
+      success: true,
+      message: 'Project updated successfully!',
+      project: metadata
+    });
+  } catch(err) {
+    if (tempFilePath && fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+    console.error('Update Error:', err);
+    return res.status(500).json({ success: false, message: 'Update failed: ' + err.message });
   }
 });
 
@@ -340,6 +551,8 @@ app.put('/api/projects/:slug', (req, res) => {
 
     if (req.body.title) metadata.title = req.body.title.trim();
     if (req.body.description !== undefined) metadata.description = req.body.description.trim();
+    if (req.body.space) metadata.space = req.body.space.trim();
+    metadata.updatedAt = new Date().toISOString();
 
     fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2));
 
@@ -411,6 +624,17 @@ app.use((req, res, next) => {
       }
 
       if (fs.existsSync(targetFile) && !fs.statSync(targetFile).isDirectory()) {
+        // Asynchronously track view count on main index access
+        if (!subPath || subPath === 'index.html') {
+          try {
+            const metaPath = path.join(projectDir, '.metadata.json');
+            if (fs.existsSync(metaPath)) {
+              const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+              meta.viewsCount = (meta.viewsCount || 0) + 1;
+              fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+            }
+          } catch(e) {}
+        }
         return res.sendFile(targetFile);
       }
     }

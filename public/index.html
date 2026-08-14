@@ -17,6 +17,7 @@
             --border-hover: rgba(99, 102, 241, 0.4);
             --primary: #6366f1;
             --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+            --ai-gradient: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
             --accent-cyan: #06b6d4;
             --accent-green: #10b981;
             --text-main: #f8fafc;
@@ -369,7 +370,7 @@
 
         .form-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 16px;
         }
 
@@ -400,7 +401,7 @@
             pointer-events: none;
         }
 
-        .text-input, .textarea-input {
+        .text-input, .textarea-input, .select-input {
             width: 100%;
             background: rgba(15, 23, 42, 0.9);
             border: 1px solid var(--border-color);
@@ -423,7 +424,7 @@
             font-family: inherit;
         }
 
-        .text-input:focus, .textarea-input:focus {
+        .text-input:focus, .textarea-input:focus, .select-input:focus {
             border-color: var(--primary);
         }
 
@@ -474,6 +475,85 @@
             font-weight: 600;
         }
 
+        /* Spaces Tabs Bar (Matching Reference Image) */
+        .spaces-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+            overflow-x: auto;
+        }
+
+        .spaces-tabs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: nowrap;
+        }
+
+        .space-tab {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 7px 14px;
+            border-radius: 8px;
+            font-size: 0.86rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .space-tab:hover {
+            background: rgba(51, 65, 85, 0.7);
+            color: #fff;
+        }
+
+        .space-tab.active {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.6);
+            color: #fff;
+        }
+
+        .space-count-badge {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 7px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
+
+        .space-tab.active .space-count-badge {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn-create-space {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            color: #cbd5e1;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 700;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .btn-create-space:hover {
+            border-color: var(--primary);
+            color: #fff;
+            background: rgba(99, 102, 241, 0.2);
+        }
+
         /* Projects Showcase Section */
         .projects-card {
             background: var(--bg-card);
@@ -483,7 +563,109 @@
             padding: 32px;
             display: flex;
             flex-direction: column;
-            gap: 24px;
+            gap: 20px;
+        }
+
+        .live-projects-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .live-title-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .live-title-group h2 {
+            font-size: 1.35rem;
+            font-weight: 700;
+        }
+
+        .live-badge {
+            background: rgba(168, 85, 247, 0.15);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            color: #c084fc;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .header-action-buttons {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-ai-create {
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            color: #d8b4fe;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.86rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-ai-create:hover {
+            background: var(--ai-gradient);
+            color: #fff;
+            border-color: transparent;
+            transform: translateY(-1px);
+        }
+
+        .btn-upload-pill {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 0.86rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .btn-upload-pill:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        .view-mode-toggle {
+            display: flex;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 2px;
+        }
+
+        .btn-view-mode {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-view-mode.active {
+            background: rgba(99, 102, 241, 0.3);
+            color: #fff;
         }
 
         .search-bar {
@@ -497,7 +679,7 @@
             background: rgba(15, 23, 42, 0.8);
             border: 1px solid var(--border-color);
             border-radius: var(--radius-sm);
-            padding: 12px 16px;
+            padding: 10px 16px;
             color: #fff;
             font-size: 0.9rem;
             outline: none;
@@ -505,6 +687,145 @@
 
         .search-input:focus {
             border-color: var(--primary);
+        }
+
+        /* Modern Table View (Matching User Reference Image) */
+        .projects-table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        .projects-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.88rem;
+        }
+
+        .projects-table th {
+            background: rgba(30, 41, 59, 0.7);
+            color: var(--text-muted);
+            padding: 14px 18px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            text-transform: uppercase;
+            font-size: 0.76rem;
+            letter-spacing: 0.05em;
+        }
+
+        .projects-table td {
+            padding: 16px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: middle;
+        }
+
+        .projects-table tr:hover td {
+            background: rgba(30, 41, 59, 0.4);
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+
+        .status-dot-small {
+            width: 6px;
+            height: 6px;
+            background-color: #10b981;
+            border-radius: 50%;
+        }
+
+        .table-project-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .table-project-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(99, 102, 241, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .table-project-link {
+            color: var(--accent-cyan);
+            text-decoration: none;
+            font-weight: 600;
+            font-family: monospace;
+            font-size: 0.92rem;
+            transition: color 0.2s ease;
+        }
+
+        .table-project-link:hover {
+            color: #fff;
+            text-decoration: underline;
+        }
+
+        .table-project-title {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .space-pill-badge {
+            background: rgba(168, 85, 247, 0.12);
+            border: 1px solid rgba(168, 85, 247, 0.25);
+            color: #d8b4fe;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.74rem;
+            font-weight: 600;
+        }
+
+        .table-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+
+        .btn-table-action {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid var(--border-color);
+            color: #cbd5e1;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-table-action:hover {
+            background: rgba(51, 65, 85, 0.9);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-table-icon {
+            padding: 6px 9px;
         }
 
         /* Projects Grid */
@@ -627,6 +948,7 @@
         .project-actions {
             display: flex;
             gap: 8px;
+            flex-wrap: wrap;
         }
 
         .btn-action {
@@ -728,7 +1050,7 @@
             to { transform: translateX(0); opacity: 1; }
         }
 
-        /* Preview Modal */
+        /* Modals */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -809,17 +1131,17 @@
             background: #fff;
         }
 
-        /* Demo Login Modal */
-        .demo-auth-modal {
+        .dialog-card {
             background: #1e293b;
             border: 1px solid var(--border-color);
             border-radius: var(--radius-md);
             padding: 24px;
             width: 100%;
-            max-width: 400px;
+            max-width: 480px;
             display: flex;
             flex-direction: column;
             gap: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
         }
 
         @media (max-width: 768px) {
@@ -829,6 +1151,7 @@
             .text-input.has-prefix { padding-left: 14px; }
             .slug-prefix { display: none; }
         }
+
         /* Footer */
         footer {
             border-top: 1px solid var(--border-color);
@@ -939,7 +1262,7 @@
         </div>
 
         <!-- Upload Form Card -->
-        <div class="upload-card">
+        <div class="upload-card" id="upload-section">
             <div class="section-header">
                 <div>
                     <h2>Upload New Web Project</h2>
@@ -984,6 +1307,12 @@
                         <label for="title-input">Project Title (ชื่อโครงการ)</label>
                         <input type="text" id="title-input" class="text-input" placeholder="e.g. Smart City Mindmap Dashboard">
                     </div>
+                    <div class="input-group">
+                        <label for="space-select-input">Space / Folder (หมวดหมู่)</label>
+                        <select id="space-select-input" class="select-input">
+                            <option value="General">General</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="input-group">
@@ -997,21 +1326,65 @@
             </div>
         </div>
 
-        <!-- Projects Showcase Section -->
+        <!-- Projects Showcase Section (With Spaces Tabs & Table Layout) -->
         <div class="projects-card">
-            <div class="section-header">
-                <div>
-                    <h2>Public Project Showcase Directory</h2>
-                    <p>รายการเว็บทั้งหมดพร้อมรายละเอียด สามารถกดดูลิงก์ พรีวิว หรืออ่านรายละเอียดได้ทันที</p>
+            
+            <!-- Spaces Bar (Matching Reference Image) -->
+            <div class="spaces-container">
+                <div class="spaces-tabs" id="spaces-tabs">
+                    <!-- Populated dynamically: All, General, etc. -->
+                </div>
+                <button class="btn-create-space" onclick="openCreateSpaceModal()" title="Create new space">
+                    <span>+</span>
+                </button>
+            </div>
+
+            <!-- Live Projects Header Bar -->
+            <div class="live-projects-header">
+                <div class="live-title-group">
+                    <h2>Live Projects</h2>
+                    <span class="live-badge" id="live-projects-badge">0/0 live</span>
+                </div>
+                <div class="header-action-buttons">
+                    <button class="btn-ai-create" onclick="openAiModal()">
+                        <span>✨ Create with AI</span>
+                    </button>
+                    <button class="btn-upload-pill" onclick="scrollToUpload()">
+                        <span>☁️ Upload file</span>
+                    </button>
+                    <div class="view-mode-toggle">
+                        <button id="btn-view-table" class="btn-view-mode active" onclick="setViewMode('table')" title="Table View">≡</button>
+                        <button id="btn-view-grid" class="btn-view-mode" onclick="setViewMode('grid')" title="Grid View">⊞</button>
+                    </div>
                 </div>
             </div>
 
             <div class="search-bar">
-                <input type="text" id="search-input" class="search-input" placeholder="Search by title, slug, author or description...">
+                <input type="text" id="search-input" class="search-input" placeholder="Search by title, slug, space, author or description...">
             </div>
 
-            <div id="projects-container" class="projects-grid">
-                <!-- Projects rendered dynamically -->
+            <!-- Table View Container -->
+            <div id="projects-table-wrapper" class="projects-table-wrapper">
+                <table class="projects-table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Project</th>
+                            <th>Space</th>
+                            <th>Modified</th>
+                            <th>Views</th>
+                            <th style="text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projects-table-body">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Grid Cards View Container -->
+            <div id="projects-container" class="projects-grid" style="display: none;">
+                <!-- Populated dynamically -->
             </div>
         </div>
     </main>
@@ -1032,19 +1405,100 @@
     <!-- Toast Notifications -->
     <div class="toast-container" id="toast-container"></div>
 
+    <!-- Create Space Modal -->
+    <div class="modal-overlay" id="create-space-modal">
+        <div class="dialog-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: #fff;">📁 Create New Space</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted)">ตั้งชื่อ Space หรือ Folder ใหม่สำหรับจัดหมวดหมู่โปรเจกต์ (เช่น Client Projects, Internal Tools, Landing Pages):</p>
+            <div class="input-group">
+                <label>Space Name (ชื่อหมวดหมู่)</label>
+                <input type="text" id="new-space-name" class="text-input" placeholder="e.g. Smart City Framework">
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                <button onclick="closeCreateSpaceModal()" class="btn-action" style="flex: none;">Cancel</button>
+                <button onclick="confirmCreateSpace()" class="btn-upload" style="width: auto; height: 38px; padding: 0 20px;">Create Space</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Project Modal -->
+    <div class="modal-overlay" id="update-project-modal">
+        <div class="dialog-card" style="max-width: 520px;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: #fff;">✏️ Update Project</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted)">อัปเดตไฟล์ใหม่ทับ หรือแก้ไขชื่อ/หมวดหมู่ของโปรเจกต์ <span id="update-modal-slug" style="color: var(--accent-cyan); font-weight: 700;"></span>:</p>
+            
+            <div class="input-group">
+                <label>Replace File (อัปโหลดไฟล์ใหม่แทนที่ - ไม่บังคับ):</label>
+                <input type="file" id="update-file-input" class="text-input" accept=".html,.htm,.zip" style="padding: 8px;">
+            </div>
+
+            <div class="input-group">
+                <label>Project Title (ชื่อโครงการ)</label>
+                <input type="text" id="update-title-input" class="text-input">
+            </div>
+
+            <div class="input-group">
+                <label>Space / Folder (หมวดหมู่)</label>
+                <select id="update-space-select" class="select-input"></select>
+            </div>
+
+            <div class="input-group">
+                <label>Description (รายละเอียด)</label>
+                <textarea id="update-desc-input" class="textarea-input"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                <button onclick="closeUpdateModal()" class="btn-action" style="flex: none;">Cancel</button>
+                <button id="btn-confirm-update" onclick="confirmUpdateProject()" class="btn-upload" style="width: auto; height: 38px; padding: 0 20px;">Save Updates</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div class="modal-overlay" id="qr-modal">
+        <div class="dialog-card" style="max-width: 380px; text-align: center; align-items: center;">
+            <h3 id="qr-modal-title" style="font-size: 1.15rem; font-weight: 700; color: #fff;">📱 Scan to Open Project</h3>
+            <p id="qr-modal-url-text" style="font-size: 0.82rem; color: var(--accent-cyan); word-break: break-all; font-family: monospace;"></p>
+            
+            <div style="background: #fff; padding: 16px; border-radius: 12px; margin: 12px 0; box-shadow: 0 8px 20px rgba(0,0,0,0.4);">
+                <img id="qr-modal-img" src="" alt="QR Code" style="width: 200px; height: 200px; display: block; margin: 0 auto;">
+            </div>
+
+            <div style="display: flex; gap: 8px; justify-content: center; width: 100%;">
+                <button onclick="copyQrUrl()" class="btn-action" style="padding: 8px 16px;">📋 Copy Link</button>
+                <button onclick="closeQrModal()" class="btn-action" style="flex: none; padding: 8px 16px;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Web Creator Modal -->
+    <div class="modal-overlay" id="ai-modal">
+        <div class="dialog-card" style="max-width: 580px;">
+            <h3 style="font-size: 1.2rem; font-weight: 700; color: #d8b4fe;">✨ Create Web Project with AI</h3>
+            <p style="font-size: 0.88rem; color: #cbd5e1; line-height: 1.5;">ใช้ AI (เช่น Gemini / ChatGPT / Antigravity) เพื่อสร้างเว็บ HTML สวยงามพร้อมรูปและ Interaction ในไฟล์เดียว:</p>
+            
+            <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; font-size: 0.85rem; color: #94a3b8; line-height: 1.6;">
+                💡 <strong>Prompt Template แนะนำ:</strong><br>
+                <code>"ช่วยสร้างเว็บแอปพลิเคชันแบบ Single File HTML ที่มี HTML, CSS, JavaScript ในไฟล์เดียว สำหรับ [ระบุสิ่งที่คุณต้องการ เช่น Smart City Dashboard, Portfolio] โดยใช้ดีไซน์ Modern Dark Glassmorphic, Typography สวยงาม และ Responsive รองรับมือถือ"</code>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+                <button onclick="copyAiPrompt()" class="btn-action">📋 Copy Prompt</button>
+                <button onclick="closeAiModal()" class="btn-upload" style="width: auto; height: 38px; padding: 0 20px;">Got it!</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Legal Policy Modal -->
     <div class="modal-overlay" id="legal-modal">
-        <div class="demo-auth-modal" style="max-width: 600px;">
+        <div class="dialog-card" style="max-width: 600px;">
             <h3 id="legal-modal-title" style="font-size: 1.2rem; font-weight: 700; color: var(--accent-cyan)">Legal Document</h3>
-            <div id="legal-modal-body" style="font-size: 0.88rem; color: #cbd5e1; line-height: 1.6; max-height: 400px; overflow-y: auto; padding-right: 8px;">
-                <!-- Content inserted via JS -->
-            </div>
+            <div id="legal-modal-body" style="font-size: 0.88rem; color: #cbd5e1; line-height: 1.6; max-height: 400px; overflow-y: auto; padding-right: 8px;"></div>
             <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
                 <button onclick="closeLegalModal()" class="btn-action" style="flex: none; padding: 8px 20px;">Close</button>
             </div>
         </div>
     </div>
-    <div class="toast-container" id="toast-container"></div>
 
     <!-- Live Preview Modal -->
     <div class="modal-overlay" id="preview-modal">
@@ -1065,9 +1519,9 @@
 
     <!-- Demo / Custom Google Login Prompt Modal -->
     <div class="modal-overlay" id="demo-login-modal">
-        <div class="demo-auth-modal">
+        <div class="dialog-card">
             <h3 style="font-size: 1.1rem; font-weight: 700;">🔑 Google Sign-In Account</h3>
-            <p style="font-size: 0.85rem; color: var(--text-muted)">กรอกอีเมลและชื่อ Google Account ของคุณเพื่อใช้สร้างและปกป้องโปรเจกต์ (เพื่อป้องกันไม่ให้คนอื่นลบหรืองานของคุณโดนแก้ไข):</p>
+            <p style="font-size: 0.85rem; color: var(--text-muted)">กรอกอีเมลและชื่อ Google Account ของคุณเพื่อใช้สร้างและปกป้องโปรเจกต์:</p>
             <div class="input-group">
                 <label>Your Name (ชื่อผู้ใช้)</label>
                 <input type="text" id="login-name-input" class="text-input" placeholder="e.g. Somchai Prasert">
@@ -1088,10 +1542,14 @@
         let currentUser = null;
         let selectedFile = null;
         let allProjects = [];
+        let allSpaces = [{ name: 'General', count: 0 }];
+        let activeSpace = 'All';
+        let currentViewMode = 'table'; // 'table' or 'grid'
+        let currentQrUrl = '';
+        let updatingSlug = '';
 
         // DOM Elements
         const userAuthBox = document.getElementById('user-auth-box');
-        const btnDemoLogin = document.getElementById('btn-demo-login');
         const guestAuthBanner = document.getElementById('guest-auth-banner');
         
         const dropzone = document.getElementById('dropzone');
@@ -1101,15 +1559,33 @@
         const slugInput = document.getElementById('slug-input');
         const titleInput = document.getElementById('title-input');
         const descInput = document.getElementById('desc-input');
+        const spaceSelectInput = document.getElementById('space-select-input');
         const btnDeploy = document.getElementById('btn-deploy');
         
+        const spacesTabsContainer = document.getElementById('spaces-tabs');
+        const liveProjectsBadge = document.getElementById('live-projects-badge');
+        const projectsTableBody = document.getElementById('projects-table-body');
+        const projectsTableWrapper = document.getElementById('projects-table-wrapper');
         const projectsContainer = document.getElementById('projects-container');
         const searchInput = document.getElementById('search-input');
+        const btnViewTable = document.getElementById('btn-view-table');
+        const btnViewGrid = document.getElementById('btn-view-grid');
+
         const statTotalProjects = document.getElementById('stat-total-projects');
         const statTotalSize = document.getElementById('stat-total-size');
         const statAuthorsCount = document.getElementById('stat-authors-count');
 
         const GOOGLE_CLIENT_ID = "555675730734-motc50fhrmgph8rh453ro0gvk56tv8e7.apps.googleusercontent.com";
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
 
         // Load Saved User Profile
         function initAuth() {
@@ -1121,16 +1597,6 @@
             }
             renderUserHeader();
             initGoogleGIS();
-        }
-
-        function escapeHtml(str) {
-            if (str === null || str === undefined) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
         }
 
         function initGoogleGIS() {
@@ -1179,7 +1645,7 @@
                 localStorage.setItem('nct_user_profile', JSON.stringify(currentUser));
                 closeDemoLoginModal();
                 renderUserHeader();
-                renderProjects(allProjects);
+                renderProjects();
                 showToast(`Welcome, ${currentUser.name}!`, 'success');
             }
         }
@@ -1258,7 +1724,7 @@
             localStorage.setItem('nct_user_profile', JSON.stringify(currentUser));
             closeDemoLoginModal();
             renderUserHeader();
-            renderProjects(allProjects);
+            renderProjects();
             showToast(`Signed in as ${currentUser.name}`, 'success');
         }
 
@@ -1266,7 +1732,7 @@
             currentUser = null;
             localStorage.removeItem('nct_user_profile');
             renderUserHeader();
-            renderProjects(allProjects);
+            renderProjects();
             showToast('Signed out', 'success');
         }
 
@@ -1343,6 +1809,7 @@
             formData.append('file', selectedFile);
             formData.append('slug', slugInput.value.trim());
             formData.append('title', titleInput.value.trim());
+            formData.append('space', spaceSelectInput.value || 'General');
             formData.append('description', descInput.value.trim());
             formData.append('author', JSON.stringify(currentUser));
 
@@ -1366,6 +1833,7 @@
                     descInput.value = '';
                     selectedFileBadge.style.display = 'none';
                     loadProjects();
+                    loadSpaces();
                 } else {
                     showToast(data.message || 'Upload failed', 'error');
                 }
@@ -1377,6 +1845,56 @@
             }
         });
 
+        // Load Spaces
+        async function loadSpaces() {
+            try {
+                const res = await fetch('/api/spaces');
+                const data = await res.json();
+                if (data.success) {
+                    allSpaces = data.spaces;
+                    renderSpacesTabs();
+                    populateSpaceDropdowns();
+                }
+            } catch(e) {
+                console.error('Failed to load spaces:', e);
+            }
+        }
+
+        function renderSpacesTabs() {
+            const totalCount = allProjects.length;
+            let html = `
+                <div class="space-tab ${activeSpace === 'All' ? 'active' : ''}" onclick="selectSpace('All')">
+                    <span>All</span>
+                    <span class="space-count-badge">${totalCount}/${totalCount}</span>
+                </div>
+            `;
+
+            allSpaces.forEach(sp => {
+                const spCount = allProjects.filter(p => (p.space || 'General') === sp.name).length;
+                html += `
+                    <div class="space-tab ${activeSpace === sp.name ? 'active' : ''}" onclick="selectSpace('${escapeHtml(sp.name)}')">
+                        <span>${escapeHtml(sp.name)}</span>
+                        <span class="space-count-badge">${spCount}</span>
+                    </div>
+                `;
+            });
+
+            spacesTabsContainer.innerHTML = html;
+        }
+
+        function populateSpaceDropdowns() {
+            const options = allSpaces.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('');
+            if (spaceSelectInput) spaceSelectInput.innerHTML = options;
+            const updateSelect = document.getElementById('update-space-select');
+            if (updateSelect) updateSelect.innerHTML = options;
+        }
+
+        function selectSpace(spaceName) {
+            activeSpace = spaceName;
+            renderSpacesTabs();
+            renderProjects();
+        }
+
         // Load Projects
         async function loadProjects() {
             try {
@@ -1386,35 +1904,125 @@
                 if (data.success) {
                     allProjects = data.projects;
                     updateStats();
-                    renderProjects(allProjects);
+                    renderSpacesTabs();
+                    renderProjects();
                 }
             } catch (err) {
                 console.error('Failed to load projects:', err);
             }
         }
 
-        // Render Project Showcase Cards
-        function renderProjects(projects) {
-            if (projects.length === 0) {
-                projectsContainer.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1 / -1;">
+        // Render Projects (Table or Grid)
+        function renderProjects() {
+            const query = (searchInput.value || '').toLowerCase().trim();
+            let filtered = allProjects;
+
+            // Space Filter
+            if (activeSpace !== 'All') {
+                filtered = filtered.filter(p => (p.space || 'General') === activeSpace);
+            }
+
+            // Search Query Filter
+            if (query) {
+                filtered = filtered.filter(p => 
+                    p.title.toLowerCase().includes(query) || 
+                    p.slug.toLowerCase().includes(query) ||
+                    (p.space && p.space.toLowerCase().includes(query)) ||
+                    (p.description && p.description.toLowerCase().includes(query)) ||
+                    (p.author && p.author.name && p.author.name.toLowerCase().includes(query))
+                );
+            }
+
+            const visibleCount = filtered.length;
+            const totalCount = allProjects.length;
+            liveProjectsBadge.textContent = `${visibleCount}/${totalCount} live`;
+
+            if (filtered.length === 0) {
+                const emptyHtml = `
+                    <div class="empty-state" style="grid-column: 1 / -1; padding: 48px 16px;">
                         <div class="empty-icon">📂</div>
-                        <h3>No active projects in directory</h3>
-                        <p>Sign in and upload the first web project above to showcase it here!</p>
+                        <h3>No projects found in this space</h3>
+                        <p>Sign in and upload a project above to showcase it here!</p>
                     </div>
                 `;
+                projectsTableBody.innerHTML = `<tr><td colspan="6">${emptyHtml}</td></tr>`;
+                projectsContainer.innerHTML = emptyHtml;
                 return;
             }
 
-            projectsContainer.innerHTML = projects.map(proj => {
+            // 1. Render Table View (Matching Screenshot)
+            projectsTableBody.innerHTML = filtered.map(proj => {
+                const fullUrl = window.location.origin + proj.url;
+                const author = proj.author || { name: 'Anonymous', email: '' };
+                const isOwner = currentUser && author.email && currentUser.email.toLowerCase() === author.email.toLowerCase();
+                const displayDate = formatDateShort(proj.updatedAt || proj.createdAt);
+                const views = proj.viewsCount || 0;
+                const displaySpace = proj.space || 'General';
+
+                return `
+                    <tr>
+                        <td>
+                            <span class="status-pill">
+                                <span class="status-dot-small"></span>
+                                <span>Public</span>
+                            </span>
+                        </td>
+                        <td>
+                            <div class="table-project-cell">
+                                <div class="table-project-icon">📄</div>
+                                <div>
+                                    <a href="${proj.url}" target="_blank" class="table-project-link">
+                                        ${proj.slug}.html.nctprosperatech.com
+                                    </a>
+                                    <div class="table-project-title">${escapeHtml(proj.title)}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="space-pill-badge">${escapeHtml(displaySpace)}</span>
+                        </td>
+                        <td>
+                            <span style="color: #cbd5e1;">${displayDate}</span>
+                        </td>
+                        <td>
+                            <span style="color: #cbd5e1; font-weight: 600;">${views}</span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div class="table-actions">
+                                <button onclick="openUpdateModal('${proj.slug}')" class="btn-table-action" title="Update Project Files or Info">
+                                    <span>✏️ Update</span>
+                                </button>
+                                <button onclick="openQrModal('${escapeHtml(proj.title)}', '${fullUrl}')" class="btn-table-action btn-table-icon" title="Show QR Code">
+                                    <span>🔲</span>
+                                </button>
+                                <a href="${proj.url}" target="_blank" class="btn-table-action btn-table-icon" title="Open Link">
+                                    <span>🔗</span>
+                                </a>
+                                <button onclick="openPreviewModal('${escapeHtml(proj.title)}', '${proj.url}')" class="btn-table-action btn-table-icon" title="Live Preview">
+                                    <span>👁️</span>
+                                </button>
+                                ${isOwner || !author.email ? `
+                                    <button onclick="deleteProject('${proj.slug}', '${author.email}')" class="btn-table-action btn-table-icon" style="color: #fca5a5;" title="Delete Project">
+                                        <span>🗑️</span>
+                                    </button>
+                                ` : `
+                                    <button disabled class="btn-table-action btn-table-icon" style="opacity: 0.3;" title="Only creator (${escapeHtml(author.email)}) can delete">
+                                        <span>🔒</span>
+                                    </button>
+                                `}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // 2. Render Grid Cards View
+            projectsContainer.innerHTML = filtered.map(proj => {
                 const fullUrl = window.location.origin + proj.url;
                 const badgeClass = proj.fileType === 'zip' ? 'badge-zip' : 'badge-html';
                 const timeAgo = formatTimeAgo(proj.createdAt);
-                
                 const author = proj.author || { name: 'Anonymous', email: '' };
                 const authorAvatar = author.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name || 'A')}&background=6366f1&color=fff`;
-
-                // Check Ownership
                 const isOwner = currentUser && author.email && currentUser.email.toLowerCase() === author.email.toLowerCase();
 
                 return `
@@ -1430,12 +2038,10 @@
                             </div>
                         </div>
 
-                        <!-- Description Box -->
                         <div class="project-desc-box">
                             📌 <strong>รายละเอียดเว็บ:</strong><br>${escapeHtml(proj.description || 'ไม่มีรายละเอียด')}
                         </div>
 
-                        <!-- Author & Metadata -->
                         <div class="project-meta">
                             <div class="author-badge" title="${escapeHtml(author.email || 'Anonymous')}">
                                 <img src="${authorAvatar}" class="author-avatar" alt="Avatar">
@@ -1444,7 +2050,6 @@
                             <span>🕒 ${timeAgo} (${formatBytes(proj.sizeBytes)})</span>
                         </div>
 
-                        <!-- Action Buttons -->
                         <div class="project-actions">
                             <a href="${proj.url}" target="_blank" class="btn-action btn-open">
                                 🔗 Open
@@ -1452,8 +2057,14 @@
                             <button onclick="copyToClipboard('${fullUrl}')" class="btn-action">
                                 📋 Copy
                             </button>
+                            <button onclick="openQrModal('${escapeHtml(proj.title)}', '${fullUrl}')" class="btn-action">
+                                🔲 QR
+                            </button>
                             <button onclick="openPreviewModal('${escapeHtml(proj.title)}', '${proj.url}')" class="btn-action">
-                                👁️ Preview
+                                👁️
+                            </button>
+                            <button onclick="openUpdateModal('${proj.slug}')" class="btn-action" title="Update Project">
+                                ✏️
                             </button>
                             
                             ${isOwner || !author.email ? `
@@ -1471,27 +2082,174 @@
             }).join('');
         }
 
+        // View Mode Switcher
+        function setViewMode(mode) {
+            currentViewMode = mode;
+            if (mode === 'table') {
+                projectsTableWrapper.style.display = 'block';
+                projectsContainer.style.display = 'none';
+                btnViewTable.classList.add('active');
+                btnViewGrid.classList.remove('active');
+            } else {
+                projectsTableWrapper.style.display = 'none';
+                projectsContainer.style.display = 'grid';
+                btnViewTable.classList.remove('active');
+                btnViewGrid.classList.add('active');
+            }
+        }
+
         // Search Filter
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase().trim();
-            const filtered = allProjects.filter(p => 
-                p.title.toLowerCase().includes(query) || 
-                p.slug.toLowerCase().includes(query) ||
-                (p.description && p.description.toLowerCase().includes(query)) ||
-                (p.author && p.author.name && p.author.name.toLowerCase().includes(query))
-            );
-            renderProjects(filtered);
-        });
+        searchInput.addEventListener('input', () => renderProjects());
 
         // Update Stats
         function updateStats() {
             statTotalProjects.textContent = allProjects.length;
-
             const totalBytes = allProjects.reduce((acc, curr) => acc + (curr.sizeBytes || 0), 0);
             statTotalSize.textContent = formatBytes(totalBytes);
-
             const authorsSet = new Set(allProjects.map(p => (p.author && p.author.email) ? p.author.email : p.author.name));
             statAuthorsCount.textContent = authorsSet.size;
+        }
+
+        // Create Space Handler
+        function openCreateSpaceModal() {
+            document.getElementById('new-space-name').value = '';
+            document.getElementById('create-space-modal').classList.add('active');
+        }
+
+        function closeCreateSpaceModal() {
+            document.getElementById('create-space-modal').classList.remove('active');
+        }
+
+        async function confirmCreateSpace() {
+            const nameInput = document.getElementById('new-space-name');
+            const name = nameInput.value.trim();
+            if (!name) {
+                showToast('Please enter a space name', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/spaces', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Space '${name}' created!`, 'success');
+                    closeCreateSpaceModal();
+                    await loadSpaces();
+                    selectSpace(name);
+                } else {
+                    showToast(data.message || 'Failed to create space', 'error');
+                }
+            } catch(e) {
+                showToast('Network error creating space', 'error');
+            }
+        }
+
+        // Update Project Modal Handler
+        function openUpdateModal(slug) {
+            const proj = allProjects.find(p => p.slug === slug);
+            if (!proj) return;
+
+            updatingSlug = slug;
+            document.getElementById('update-modal-slug').textContent = slug;
+            document.getElementById('update-title-input').value = proj.title || '';
+            document.getElementById('update-desc-input').value = proj.description || '';
+            document.getElementById('update-file-input').value = '';
+            
+            const spaceSelect = document.getElementById('update-space-select');
+            if (spaceSelect) spaceSelect.value = proj.space || 'General';
+
+            document.getElementById('update-project-modal').classList.add('active');
+        }
+
+        function closeUpdateModal() {
+            document.getElementById('update-project-modal').classList.remove('active');
+            updatingSlug = '';
+        }
+
+        async function confirmUpdateProject() {
+            if (!updatingSlug) return;
+            const title = document.getElementById('update-title-input').value.trim();
+            const description = document.getElementById('update-desc-input').value.trim();
+            const space = document.getElementById('update-space-select').value || 'General';
+            const fileInput = document.getElementById('update-file-input');
+            const file = fileInput.files.length > 0 ? fileInput.files[0] : null;
+
+            const btnSave = document.getElementById('btn-confirm-update');
+            btnSave.disabled = true;
+            btnSave.textContent = 'Saving...';
+
+            const formData = new FormData();
+            if (file) formData.append('file', file);
+            formData.append('title', title);
+            formData.append('description', description);
+            formData.append('space', space);
+            if (currentUser) formData.append('userEmail', currentUser.email);
+
+            try {
+                const res = await fetch(`/api/projects/${updatingSlug}/update`, {
+                    method: 'POST',
+                    headers: {
+                        'x-user-email': currentUser ? currentUser.email : ''
+                    },
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Project '${updatingSlug}' updated successfully!`, 'success');
+                    closeUpdateModal();
+                    loadProjects();
+                    loadSpaces();
+                } else {
+                    showToast(data.message || 'Update failed', 'error');
+                }
+            } catch(e) {
+                showToast('Failed to update project', 'error');
+            } finally {
+                btnSave.disabled = false;
+                btnSave.textContent = 'Save Updates';
+            }
+        }
+
+        // QR Code Modal Handler
+        function openQrModal(title, url) {
+            currentQrUrl = url;
+            document.getElementById('qr-modal-title').textContent = `📱 Scan: ${title}`;
+            document.getElementById('qr-modal-url-text').textContent = url;
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}`;
+            document.getElementById('qr-modal-img').src = qrApiUrl;
+            document.getElementById('qr-modal').classList.add('active');
+        }
+
+        function closeQrModal() {
+            document.getElementById('qr-modal').classList.remove('active');
+        }
+
+        function copyQrUrl() {
+            if (currentQrUrl) copyToClipboard(currentQrUrl);
+        }
+
+        // AI Modal Handler
+        function openAiModal() {
+            document.getElementById('ai-modal').classList.add('active');
+        }
+
+        function closeAiModal() {
+            document.getElementById('ai-modal').classList.remove('active');
+        }
+
+        function copyAiPrompt() {
+            const prompt = "ช่วยสร้างเว็บแอปพลิเคชันแบบ Single File HTML ที่มี HTML, CSS, JavaScript ในไฟล์เดียว สำหรับ [ระบุโปรเจกต์] โดยใช้ดีไซน์ Modern Dark Glassmorphic, Typography สวยงาม และ Responsive รองรับมือถือ";
+            navigator.clipboard.writeText(prompt).then(() => {
+                showToast('AI Prompt copied to clipboard!', 'success');
+            });
+        }
+
+        function scrollToUpload() {
+            document.getElementById('upload-section').scrollIntoView({ behavior: 'smooth' });
         }
 
         // Delete Project (Author Protected)
@@ -1521,6 +2279,7 @@
                 if (data.success) {
                     showToast(`Project '${slug}' deleted`, 'success');
                     loadProjects();
+                    loadSpaces();
                 } else {
                     showToast(data.message || 'Delete failed', 'error');
                 }
@@ -1575,6 +2334,16 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
 
+        function formatDateShort(isoString) {
+            if (!isoString) return 'N/A';
+            const date = new Date(isoString);
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const day = date.getDate();
+            const month = months[date.getMonth()];
+            const year = date.getFullYear().toString().slice(-2);
+            return `${day} ${month} ${year}`;
+        }
+
         function formatTimeAgo(isoString) {
             if (!isoString) return 'Unknown';
             const date = new Date(isoString);
@@ -1624,6 +2393,7 @@
 
         // Init
         initAuth();
+        loadSpaces();
         loadProjects();
     </script>
 </body>
