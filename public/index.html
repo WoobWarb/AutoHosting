@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NCT Web Deployment Hub - HTML & Static Auto Deploy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --bg-card: rgba(15, 23, 42, 0.75);
+            --bg-card-hover: rgba(30, 41, 59, 0.85);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --border-hover: rgba(99, 102, 241, 0.4);
+            --primary: #6366f1;
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --danger: #ef4444;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --shadow-glow: 0 0 30px rgba(99, 102, 241, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', 'Prompt', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.15) 0%, transparent 45%),
+                radial-gradient(circle at 85% 75%, rgba(236, 72, 153, 0.12) 0%, transparent 45%);
+            background-attachment: fixed;
+            padding-bottom: 60px;
+        }
+
+        /* Top Header */
+        header {
+            background: rgba(9, 13, 22, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            padding: 16px 32px;
+        }
+
+        .header-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .logo-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 42px;
+            height: 42px;
+            background: var(--primary-gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 20px;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .logo-text h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-text p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .server-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            color: var(--accent-green);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-green);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* User Profile & Auth Button */
+        .user-auth-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px 6px 6px;
+            border-radius: 30px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary);
+        }
+
+        .user-name {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .btn-logout {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.3);
+            color: #fff;
+        }
+
+        .btn-google-fallback {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #ffffff;
+            color: #3c4043;
+            border: 1px solid #dadce0;
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            transition: all 0.2s ease;
+        }
+
+        .btn-google-fallback:hover {
+            background: #f8f9fa;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+            border-color: #d2dce0;
+        }
+
+        /* Main Layout */
+        main {
+            max-width: 1280px;
+            margin: 32px auto;
+            padding: 0 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-2px);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .stat-info h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .stat-info p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Upload Hero Card */
+        .upload-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            box-shadow: var(--shadow-glow);
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .section-header h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .section-header p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .guest-auth-banner {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px dashed rgba(99, 102, 241, 0.3);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .guest-auth-text {
+            font-size: 0.9rem;
+            color: #c7d2fe;
+        }
+
+        /* Dropzone */
+        .dropzone {
+            border: 2px dashed rgba(99, 102, 241, 0.35);
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: var(--radius-md);
+            padding: 36px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.08);
+            transform: scale(1.005);
+        }
+
+        .dropzone-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 12px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            font-size: 26px;
+            transition: transform 0.3s ease;
+        }
+
+        .dropzone:hover .dropzone-icon {
+            transform: translateY(-4px);
+        }
+
+        .dropzone-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .dropzone-hint {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* Upload Controls Form */
+        .upload-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .input-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .slug-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .slug-prefix {
+            position: absolute;
+            left: 14px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-family: monospace;
+            pointer-events: none;
+        }
+
+        .text-input, .textarea-input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            color: #fff;
+            font-size: 0.92rem;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .text-input.has-prefix {
+            padding-left: 210px;
+            font-family: monospace;
+        }
+
+        .textarea-input {
+            resize: vertical;
+            min-height: 70px;
+            font-family: inherit;
+        }
+
+        .text-input:focus, .textarea-input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-upload {
+            background: var(--primary-gradient);
+            color: #fff;
+            border: none;
+            padding: 12px 28px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 48px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .btn-upload:hover {
+            opacity: 0.92;
+            transform: translateY(-1px);
+        }
+
+        .btn-upload:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Selected File Badge */
+        .selected-file-badge {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            padding: 10px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            color: #c7d2fe;
+        }
+
+        .selected-file-badge span {
+            font-weight: 600;
+        }
+
+        /* Projects Showcase Section */
+        .projects-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            color: #fff;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+        }
+
+        /* Projects Grid */
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 24px;
+        }
+
+        .project-card {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 18px;
+            transition: all 0.25s ease;
+            position: relative;
+        }
+
+        .project-card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .project-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .project-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.3;
+            word-break: break-word;
+        }
+
+        .badge-type {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .badge-zip {
+            background: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+
+        .badge-html {
+            background: rgba(6, 182, 212, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .project-url {
+            font-family: monospace;
+            font-size: 0.88rem;
+            color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.08);
+            padding: 8px 12px;
+            border-radius: 6px;
+            word-break: break-all;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Description Box */
+        .project-desc-box {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            font-size: 0.88rem;
+            color: #cbd5e1;
+            line-height: 1.5;
+            white-space: pre-line;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        /* Author Badge */
+        .author-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .author-avatar {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: var(--primary);
+        }
+
+        .project-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 12px;
+        }
+
+        .project-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background: rgba(30, 41, 59, 0.6);
+            color: #fff;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-action:hover {
+            background: rgba(51, 65, 85, 0.9);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-action.btn-open {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: #a5b4fc;
+        }
+
+        .btn-action.btn-open:hover {
+            background: rgba(99, 102, 241, 0.4);
+            color: #fff;
+        }
+
+        .btn-action.btn-delete {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.25);
+            color: #fca5a5;
+            flex: 0 0 auto;
+            padding: 8px 12px;
+        }
+
+        .btn-action.btn-delete:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.3);
+            color: #fff;
+        }
+
+        .btn-action:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.9rem;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success { border-left: 4px solid var(--accent-green); }
+        .toast.error { border-left: 4px solid var(--danger); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Preview Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-container {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 1100px;
+            height: 85vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.95);
+        }
+
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-modal-close {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .btn-modal-close:hover {
+            background: rgba(239, 68, 68, 0.5);
+        }
+
+        .modal-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #fff;
+        }
+
+        /* Demo Login Modal */
+        .demo-auth-modal {
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            header { padding: 16px; }
+            main { padding: 0 16px; margin: 16px auto; }
+            .form-grid { grid-template-columns: 1fr; }
+            .text-input.has-prefix { padding-left: 14px; }
+            .slug-prefix { display: none; }
+        }
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border-color);
+            background: rgba(9, 13, 22, 0.95);
+            padding: 36px 24px;
+            margin-top: 60px;
+            text-align: center;
+        }
+
+        .footer-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.88rem;
+            color: var(--text-muted);
+        }
+
+        .footer-copyright {
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .footer-tech {
+            font-size: 0.83rem;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.04);
+            padding: 6px 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            margin: 4px 0;
+        }
+
+        .footer-links {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 2px;
+            font-size: 0.85rem;
+        }
+
+        .footer-links a {
+            color: #a5b4fc;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .footer-links a:hover {
+            color: #fff;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <div class="logo-group">
+                <div class="logo-icon">⚡</div>
+                <div class="logo-text">
+                    <h1>NCT Web Deploy Manager</h1>
+                    <p>html.nctprosperatech.com Project Showcase & Hosting</p>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <div class="server-status">
+                    <div class="status-dot"></div>
+                    <span>Server Active</span>
+                </div>
+
+                <!-- Google Auth Container -->
+                <div class="user-auth-box" id="user-auth-box">
+                    <div id="g_id_onload"></div>
+                    <div id="google-signin-btn"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Top Stats Overview -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">🚀</div>
+                <div class="stat-info">
+                    <h3 id="stat-total-projects">0</h3>
+                    <p>Total Active Projects</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📦</div>
+                <div class="stat-info">
+                    <h3 id="stat-total-size">0 KB</h3>
+                    <p>Total Assets Storage</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-info">
+                    <h3 id="stat-authors-count">0</h3>
+                    <p>Project Authors</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Form Card -->
+        <div class="upload-card">
+            <div class="section-header">
+                <div>
+                    <h2>Upload New Web Project</h2>
+                    <p>Upload a standalone <code>.html</code> file or a <code>.zip</code> web bundle. (Sign in with Google required to deploy)</p>
+                </div>
+            </div>
+
+            <!-- Guest Login Banner -->
+            <div class="guest-auth-banner" id="guest-auth-banner">
+                <div class="guest-auth-text">
+                    🔒 <strong>Public Visitors:</strong> You can view all links and project details below. To deploy your own project, please sign in with Google.
+                </div>
+                <button onclick="promptGoogleLogin()" class="btn-upload" style="width: auto; height: 38px; padding: 0 16px; font-size: 0.85rem;">
+                    Sign In to Deploy 🔑
+                </button>
+            </div>
+
+            <!-- Dropzone -->
+            <div class="dropzone" id="dropzone">
+                <div class="dropzone-icon">📁</div>
+                <div class="dropzone-title">Click to choose or Drag & Drop file here</div>
+                <div class="dropzone-hint">Supports <strong>.html</strong> or <strong>.zip</strong> (Contains HTML, CSS, JS & Images)</div>
+                <input type="file" id="file-input" class="file-input" accept=".html,.htm,.zip">
+            </div>
+
+            <!-- Selected File Badge -->
+            <div class="selected-file-badge" id="selected-file-badge">
+                📄 Selected File: <span id="selected-filename">-</span>
+            </div>
+
+            <!-- Upload Form Controls -->
+            <div class="upload-controls">
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label for="slug-input">Project Path / Slug (URL Path)</label>
+                        <div class="slug-input-wrapper">
+                            <span class="slug-prefix">html.nctprosperatech.com/</span>
+                            <input type="text" id="slug-input" class="text-input has-prefix" placeholder="my-project-name">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="title-input">Project Title (ชื่อโครงการ)</label>
+                        <input type="text" id="title-input" class="text-input" placeholder="e.g. Smart City Mindmap Dashboard">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="desc-input">Website Details & Description (รายละเอียดเว็บ - บอกว่าเว็บนี้ทำอะไรเกี่ยวกับอะไร)</label>
+                    <textarea id="desc-input" class="textarea-input" placeholder="ระบุรายละเอียด เช่น: เว็บไซต์รวบรวม Mindmap โครงสร้าง Smart City Framework สำหรับใช้งานแสดงผลให้ทีมงานและลูกค้า..."></textarea>
+                </div>
+
+                <button id="btn-deploy" class="btn-upload" disabled>
+                    <span>Deploy Project</span> 🚀
+                </button>
+            </div>
+        </div>
+
+        <!-- Projects Showcase Section -->
+        <div class="projects-card">
+            <div class="section-header">
+                <div>
+                    <h2>Public Project Showcase Directory</h2>
+                    <p>รายการเว็บทั้งหมดพร้อมรายละเอียด สามารถกดดูลิงก์ พรีวิว หรืออ่านรายละเอียดได้ทันที</p>
+                </div>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="search-input" class="search-input" placeholder="Search by title, slug, author or description...">
+            </div>
+
+            <div id="projects-container" class="projects-grid">
+                <!-- Projects rendered dynamically -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <p class="footer-copyright">© 2026 NCT ProsperaTech. All rights reserved.</p>
+            <p class="footer-tech">FileSaverBot ทำงานบน LINE Messaging API · Google Drive API · Gemini AI</p>
+            <div class="footer-links">
+                <a href="javascript:void(0)" onclick="openLegalModal('privacy')">Privacy Policy</a>
+                <span>·</span>
+                <a href="javascript:void(0)" onclick="openLegalModal('terms')">Terms of Service</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Legal Policy Modal -->
+    <div class="modal-overlay" id="legal-modal">
+        <div class="demo-auth-modal" style="max-width: 600px;">
+            <h3 id="legal-modal-title" style="font-size: 1.2rem; font-weight: 700; color: var(--accent-cyan)">Legal Document</h3>
+            <div id="legal-modal-body" style="font-size: 0.88rem; color: #cbd5e1; line-height: 1.6; max-height: 400px; overflow-y: auto; padding-right: 8px;">
+                <!-- Content inserted via JS -->
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
+                <button onclick="closeLegalModal()" class="btn-action" style="flex: none; padding: 8px 20px;">Close</button>
+            </div>
+        </div>
+    </div>
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Live Preview Modal -->
+    <div class="modal-overlay" id="preview-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span>👁️ Live Preview:</span>
+                    <span id="modal-project-title" style="color: var(--accent-cyan)">-</span>
+                </div>
+                <div class="modal-controls">
+                    <a id="modal-open-link" target="_blank" class="btn-action btn-open" style="padding: 6px 12px;">Open Full Page ↗</a>
+                    <button class="btn-modal-close" onclick="closePreviewModal()">✕</button>
+                </div>
+            </div>
+            <iframe id="modal-iframe" class="modal-iframe" src="about:blank"></iframe>
+        </div>
+    </div>
+
+    <!-- Demo / Custom Google Login Prompt Modal -->
+    <div class="modal-overlay" id="demo-login-modal">
+        <div class="demo-auth-modal">
+            <h3 style="font-size: 1.1rem; font-weight: 700;">🔑 Google Sign-In Account</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted)">กรอกอีเมลและชื่อ Google Account ของคุณเพื่อใช้สร้างและปกป้องโปรเจกต์ (เพื่อป้องกันไม่ให้คนอื่นลบหรืองานของคุณโดนแก้ไข):</p>
+            <div class="input-group">
+                <label>Your Name (ชื่อผู้ใช้)</label>
+                <input type="text" id="login-name-input" class="text-input" placeholder="e.g. Somchai Prasert">
+            </div>
+            <div class="input-group">
+                <label>Your Google Email (อีเมล)</label>
+                <input type="email" id="login-email-input" class="text-input" placeholder="e.g. somchai@gmail.com">
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                <button onclick="closeDemoLoginModal()" class="btn-action" style="flex: none;">Cancel</button>
+                <button onclick="confirmDemoLogin()" class="btn-upload" style="width: auto; height: 38px; padding: 0 20px;">Save & Sign In</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let currentUser = null;
+        let selectedFile = null;
+        let allProjects = [];
+
+        // DOM Elements
+        const userAuthBox = document.getElementById('user-auth-box');
+        const btnDemoLogin = document.getElementById('btn-demo-login');
+        const guestAuthBanner = document.getElementById('guest-auth-banner');
+        
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const selectedFileBadge = document.getElementById('selected-file-badge');
+        const selectedFileName = document.getElementById('selected-filename');
+        const slugInput = document.getElementById('slug-input');
+        const titleInput = document.getElementById('title-input');
+        const descInput = document.getElementById('desc-input');
+        const btnDeploy = document.getElementById('btn-deploy');
+        
+        const projectsContainer = document.getElementById('projects-container');
+        const searchInput = document.getElementById('search-input');
+        const statTotalProjects = document.getElementById('stat-total-projects');
+        const statTotalSize = document.getElementById('stat-total-size');
+        const statAuthorsCount = document.getElementById('stat-authors-count');
+
+        const GOOGLE_CLIENT_ID = "555675730734-motc50fhrmgph8rh453ro0gvk56tv8e7.apps.googleusercontent.com";
+
+        // Load Saved User Profile
+        function initAuth() {
+            const savedUser = localStorage.getItem('nct_user_profile');
+            if (savedUser) {
+                try {
+                    currentUser = JSON.parse(savedUser);
+                } catch(e) {}
+            }
+            renderUserHeader();
+            initGoogleGIS();
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function initGoogleGIS() {
+            if (currentUser) return;
+
+            if (window.google && google.accounts && google.accounts.id) {
+                try {
+                    google.accounts.id.initialize({
+                        client_id: GOOGLE_CLIENT_ID,
+                        callback: handleGoogleCredentialResponse,
+                        auto_select: false
+                    });
+
+                    const btnContainer = document.getElementById("google-signin-btn");
+                    if (btnContainer) {
+                        btnContainer.innerHTML = '';
+                        google.accounts.id.renderButton(
+                            btnContainer,
+                            { theme: "filled_blue", size: "medium", type: "standard", shape: "pill" }
+                        );
+
+                        setTimeout(() => {
+                            const fallbackBtn = document.getElementById("fallback-login-btn");
+                            if (fallbackBtn && btnContainer.children.length > 0 && btnContainer.offsetHeight > 0) {
+                                fallbackBtn.style.display = 'none';
+                            }
+                        }, 600);
+                    }
+                } catch(e) {
+                    console.error('Google GIS Error:', e);
+                }
+            } else {
+                setTimeout(initGoogleGIS, 300);
+            }
+        }
+
+        function handleGoogleCredentialResponse(response) {
+            if (response.credential) {
+                const payload = parseJwt(response.credential);
+                currentUser = {
+                    name: payload.name || payload.email.split('@')[0],
+                    email: payload.email,
+                    picture: payload.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(payload.name)}&background=6366f1&color=fff`,
+                    googleId: payload.sub
+                };
+                localStorage.setItem('nct_user_profile', JSON.stringify(currentUser));
+                closeDemoLoginModal();
+                renderUserHeader();
+                renderProjects(allProjects);
+                showToast(`Welcome, ${currentUser.name}!`, 'success');
+            }
+        }
+
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                return JSON.parse(jsonPayload);
+            } catch(e) { return {}; }
+        }
+
+        function renderUserHeader() {
+            if (currentUser) {
+                userAuthBox.innerHTML = `
+                    <div class="user-profile">
+                        <img src="${currentUser.picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name)}" class="user-avatar" alt="Avatar">
+                        <span class="user-name">${escapeHtml(currentUser.name)}</span>
+                    </div>
+                    <button onclick="logout()" class="btn-logout">Sign Out</button>
+                `;
+                guestAuthBanner.style.display = 'none';
+            } else {
+                userAuthBox.innerHTML = `
+                    <div id="google-signin-btn"></div>
+                    <button id="fallback-login-btn" onclick="promptGoogleLogin()" class="btn-google-fallback">
+                        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+                        <span>Sign in with Google</span>
+                    </button>
+                `;
+                guestAuthBanner.style.display = 'flex';
+                setTimeout(initGoogleGIS, 100);
+            }
+            updateDeployButtonState();
+        }
+
+        function promptGoogleLogin() {
+            if (window.google && google.accounts && google.accounts.id) {
+                try {
+                    google.accounts.id.prompt((notification) => {
+                        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                            document.getElementById('demo-login-modal').classList.add('active');
+                        }
+                    });
+                } catch(e) {
+                    document.getElementById('demo-login-modal').classList.add('active');
+                }
+            } else {
+                document.getElementById('demo-login-modal').classList.add('active');
+            }
+        }
+
+        function closeDemoLoginModal() {
+            document.getElementById('demo-login-modal').classList.remove('active');
+        }
+
+        function confirmDemoLogin() {
+            const nameInput = document.getElementById('login-name-input');
+            const emailInput = document.getElementById('login-email-input');
+            const name = nameInput ? nameInput.value.trim() : '';
+            const email = emailInput ? emailInput.value.trim() : '';
+
+            if (!email || !email.includes('@')) {
+                showToast('Please enter a valid Google email address', 'error');
+                return;
+            }
+
+            currentUser = {
+                name: name || email.split('@')[0],
+                email: email,
+                picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(name || email)}&background=6366f1&color=fff`,
+                googleId: 'custom_' + Date.now()
+            };
+
+            localStorage.setItem('nct_user_profile', JSON.stringify(currentUser));
+            closeDemoLoginModal();
+            renderUserHeader();
+            renderProjects(allProjects);
+            showToast(`Signed in as ${currentUser.name}`, 'success');
+        }
+
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('nct_user_profile');
+            renderUserHeader();
+            renderProjects(allProjects);
+            showToast('Signed out', 'success');
+        }
+
+        // File Selection Events
+        dropzone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelection(e.target.files[0]);
+            }
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+            });
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelection(files[0]);
+            }
+        });
+
+        function handleFileSelection(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['html', 'htm', 'zip'].includes(ext)) {
+                showToast('Please upload a valid .html or .zip file', 'error');
+                return;
+            }
+
+            selectedFile = file;
+            selectedFileName.textContent = `${file.name} (${formatBytes(file.size)})`;
+            selectedFileBadge.style.display = 'flex';
+
+            const baseName = file.name.substring(0, file.name.lastIndexOf('.'));
+            if (!slugInput.value.trim()) {
+                slugInput.value = baseName.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+            }
+            if (!titleInput.value.trim()) {
+                titleInput.value = baseName.replace(/[-_]/g, ' ');
+            }
+
+            updateDeployButtonState();
+        }
+
+        function updateDeployButtonState() {
+            btnDeploy.disabled = !selectedFile || !currentUser;
+            if (!currentUser) {
+                btnDeploy.innerHTML = '<span>Sign In to Deploy</span> 🔒';
+            } else {
+                btnDeploy.innerHTML = '<span>Deploy Project</span> 🚀';
+            }
+        }
+
+        // Upload Deploy Handler
+        btnDeploy.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            if (!currentUser) {
+                promptGoogleLogin();
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('slug', slugInput.value.trim());
+            formData.append('title', titleInput.value.trim());
+            formData.append('description', descInput.value.trim());
+            formData.append('author', JSON.stringify(currentUser));
+
+            btnDeploy.disabled = true;
+            btnDeploy.innerHTML = '<span>Deploying...</span> ⏳';
+
+            try {
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast(`Project '${data.slug}' deployed successfully!`, 'success');
+                    selectedFile = null;
+                    fileInput.value = '';
+                    slugInput.value = '';
+                    titleInput.value = '';
+                    descInput.value = '';
+                    selectedFileBadge.style.display = 'none';
+                    loadProjects();
+                } else {
+                    showToast(data.message || 'Upload failed', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Server error during upload', 'error');
+            } finally {
+                updateDeployButtonState();
+            }
+        });
+
+        // Load Projects
+        async function loadProjects() {
+            try {
+                const res = await fetch('/api/projects');
+                const data = await res.json();
+
+                if (data.success) {
+                    allProjects = data.projects;
+                    updateStats();
+                    renderProjects(allProjects);
+                }
+            } catch (err) {
+                console.error('Failed to load projects:', err);
+            }
+        }
+
+        // Render Project Showcase Cards
+        function renderProjects(projects) {
+            if (projects.length === 0) {
+                projectsContainer.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="empty-icon">📂</div>
+                        <h3>No active projects in directory</h3>
+                        <p>Sign in and upload the first web project above to showcase it here!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            projectsContainer.innerHTML = projects.map(proj => {
+                const fullUrl = window.location.origin + proj.url;
+                const badgeClass = proj.fileType === 'zip' ? 'badge-zip' : 'badge-html';
+                const timeAgo = formatTimeAgo(proj.createdAt);
+                
+                const author = proj.author || { name: 'Anonymous', email: '' };
+                const authorAvatar = author.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name || 'A')}&background=6366f1&color=fff`;
+
+                // Check Ownership
+                const isOwner = currentUser && author.email && currentUser.email.toLowerCase() === author.email.toLowerCase();
+
+                return `
+                    <div class="project-card">
+                        <div>
+                            <div class="project-header">
+                                <div class="project-title">${escapeHtml(proj.title)}</div>
+                                <span class="badge-type ${badgeClass}">${proj.fileType}</span>
+                            </div>
+                            
+                            <div class="project-url">
+                                <span>${proj.url}</span>
+                            </div>
+                        </div>
+
+                        <!-- Description Box -->
+                        <div class="project-desc-box">
+                            📌 <strong>รายละเอียดเว็บ:</strong><br>${escapeHtml(proj.description || 'ไม่มีรายละเอียด')}
+                        </div>
+
+                        <!-- Author & Metadata -->
+                        <div class="project-meta">
+                            <div class="author-badge" title="${escapeHtml(author.email || 'Anonymous')}">
+                                <img src="${authorAvatar}" class="author-avatar" alt="Avatar">
+                                <span>${escapeHtml(author.name || 'Anonymous')}</span>
+                            </div>
+                            <span>🕒 ${timeAgo} (${formatBytes(proj.sizeBytes)})</span>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="project-actions">
+                            <a href="${proj.url}" target="_blank" class="btn-action btn-open">
+                                🔗 Open
+                            </a>
+                            <button onclick="copyToClipboard('${fullUrl}')" class="btn-action">
+                                📋 Copy
+                            </button>
+                            <button onclick="openPreviewModal('${escapeHtml(proj.title)}', '${proj.url}')" class="btn-action">
+                                👁️ Preview
+                            </button>
+                            
+                            ${isOwner || !author.email ? `
+                                <button onclick="deleteProject('${proj.slug}', '${author.email}')" class="btn-action btn-delete" title="Delete Project (Author Only)">
+                                    🗑️
+                                </button>
+                            ` : `
+                                <button disabled class="btn-action btn-delete" title="Only creator (${escapeHtml(author.email)}) can delete">
+                                    🔒
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Search Filter
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const filtered = allProjects.filter(p => 
+                p.title.toLowerCase().includes(query) || 
+                p.slug.toLowerCase().includes(query) ||
+                (p.description && p.description.toLowerCase().includes(query)) ||
+                (p.author && p.author.name && p.author.name.toLowerCase().includes(query))
+            );
+            renderProjects(filtered);
+        });
+
+        // Update Stats
+        function updateStats() {
+            statTotalProjects.textContent = allProjects.length;
+
+            const totalBytes = allProjects.reduce((acc, curr) => acc + (curr.sizeBytes || 0), 0);
+            statTotalSize.textContent = formatBytes(totalBytes);
+
+            const authorsSet = new Set(allProjects.map(p => (p.author && p.author.email) ? p.author.email : p.author.name));
+            statAuthorsCount.textContent = authorsSet.size;
+        }
+
+        // Delete Project (Author Protected)
+        async function deleteProject(slug, authorEmail) {
+            if (!currentUser) {
+                showToast('Please sign in to delete projects', 'error');
+                promptGoogleLogin();
+                return;
+            }
+
+            if (authorEmail && currentUser.email.toLowerCase() !== authorEmail.toLowerCase()) {
+                showToast(`Permission denied: Only ${authorEmail} can delete this project`, 'error');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete project '${slug}'? This action cannot be undone.`)) return;
+
+            try {
+                const res = await fetch(`/api/projects/${slug}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'x-user-email': currentUser.email
+                    }
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Project '${slug}' deleted`, 'success');
+                    loadProjects();
+                } else {
+                    showToast(data.message || 'Delete failed', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to delete project', 'error');
+            }
+        }
+
+        // Preview Modal
+        function openPreviewModal(title, url) {
+            document.getElementById('modal-project-title').textContent = title;
+            document.getElementById('modal-iframe').src = url;
+            document.getElementById('modal-open-link').href = url;
+            document.getElementById('preview-modal').classList.add('active');
+        }
+
+        function closePreviewModal() {
+            document.getElementById('preview-modal').classList.remove('active');
+            document.getElementById('modal-iframe').src = 'about:blank';
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('URL copied to clipboard!', 'success');
+            }).catch(err => {
+                showToast('Failed to copy URL', 'error');
+            });
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${type === 'success' ? '✅' : '❌'}</span> <span>${escapeHtml(message)}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        function formatTimeAgo(isoString) {
+            if (!isoString) return 'Unknown';
+            const date = new Date(isoString);
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'Just now';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}m ago`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours}h ago`;
+            const days = Math.floor(hours / 24);
+            return `${days}d ago`;
+        }
+
+        function openLegalModal(type) {
+            const titleEl = document.getElementById('legal-modal-title');
+            const bodyEl = document.getElementById('legal-modal-body');
+            
+            if (type === 'privacy') {
+                titleEl.textContent = 'Privacy Policy (นโยบายความเป็นส่วนตัว)';
+                bodyEl.innerHTML = `
+                    <p><strong>NCT ProsperaTech</strong> ให้ความสำคัญกับการคุ้มครองข้อมูลส่วนบุคคลของคุณ:</p>
+                    <ul style="margin-left: 20px; margin-top: 8px;">
+                        <li><strong>ข้อมูลที่เราจัดเก็บ:</strong> ข้อมูลระบุตัวตนจาก Google Account (ชื่อ, อีเมล, รูปโปรไฟล์) เมื่อคุณลงชื่อเข้าใช้งาน</li>
+                        <li><strong>การนำข้อมูลไปใช้:</strong> ใช้เฉพาะเพื่อการยืนยันสิทธิ์ในการเป็นเจ้าของโปรเจกต์และการจัดการไฟล์อัปโหลดของคุณเท่านั้น</li>
+                        <li><strong>ความปลอดภัย:</strong> ข้อมูลไฟล์และสิทธิ์การลบจะถูกปกป้องด้วยระบบยืนยันตัวตน และไม่มีการเปิดเผยข้อมูลส่วนตัวแก่บุคคลภายนอก</li>
+                    </ul>
+                `;
+            } else {
+                titleEl.textContent = 'Terms of Service (ข้อกำหนดการใช้งาน)';
+                bodyEl.innerHTML = `
+                    <p><strong>ข้อกำหนดในการใช้บริการ NCT Web Deploy Manager:</strong></p>
+                    <ul style="margin-left: 20px; margin-top: 8px;">
+                        <li><strong>การใช้งานที่ได้รับอนุญาต:</strong> อนุญาตให้อัปโหลดเฉพาะไฟล์เว็บ Static HTML / Assets สำหรับใช้งานในองค์กรหรือโปรเจกต์ที่ได้รับอนุญาต</li>
+                        <li><strong>ข้อห้าม:</strong> ห้ามอัปโหลดเนื้อหาที่ละเมิดลิขสิทธิ์, มัลแวร์, หรือไฟล์ที่เป็นอันตรายต่อระบบ</li>
+                        <li><strong>การจำกัดโควต้า:</strong> โควต้าการจัดเก็บข้อมูลอยู่ที่ 50 MB ต่อไฟล์ และ 500 MB ต่อผู้ใช้งานสำหรับทีมงาน NCT ProsperaTech</li>
+                    </ul>
+                `;
+            }
+            document.getElementById('legal-modal').classList.add('active');
+        }
+
+        function closeLegalModal() {
+            document.getElementById('legal-modal').classList.remove('active');
+        }
+
+        // Init
+        initAuth();
+        loadProjects();
+    </script>
+</body>
+</html>

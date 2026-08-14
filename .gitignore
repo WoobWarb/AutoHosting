@@ -1,0 +1,6 @@
+node_modules/
+temp_uploads/
+*.tar.gz
+.DS_Store
+Thumbs.db
+.env
