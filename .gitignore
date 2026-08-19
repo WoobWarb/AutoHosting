@@ -6,3 +6,4 @@ Thumbs.db
 .env
 Client ID.txt
 client_secret_*.json
+.session_secret

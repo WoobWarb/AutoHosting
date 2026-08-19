@@ -10,6 +10,7 @@ const { exec } = require('child_process');
 const { OAuth2Client } = require('google-auth-library');
 
 const app = express();
+app.set('trust proxy', 1); // behind Nginx — needed for req.secure to reflect the real protocol
 const PORT = process.env.PORT || 3000;
 
 // Google OAuth verification (Client ID is public info; the secret is never used server-side)
@@ -46,6 +47,86 @@ async function requireAuth(req, res, next) {
   req.authUser = user;
   next();
 }
+
+// Middleware: like requireAuth, but doesn't reject the request when no/invalid token is
+// present — just leaves req.authUser unset. Used by endpoints that are public but should
+// still know who's asking (e.g. to include the requester's own private projects).
+async function softAuth(req, res, next) {
+  const authHeader = req.headers['authorization'] || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  req.authUser = await verifyGoogleToken(idToken);
+  next();
+}
+
+// Admins can see and manage every project regardless of visibility or ownership
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '0deathwolf@gmail.com')
+  .split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+function isAdmin(email) {
+  return !!email && ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
+// Session cookie: lets a plain browser page-navigation (which can't carry an Authorization
+// header) prove who's asking, so "self" visibility can actually be enforced on the raw
+// hosted URL, not just on API calls.
+const SESSION_SECRET_FILE = path.join(__dirname, '.session_secret');
+let SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET) {
+  if (fs.existsSync(SESSION_SECRET_FILE)) {
+    SESSION_SECRET = fs.readFileSync(SESSION_SECRET_FILE, 'utf8').trim();
+  } else {
+    SESSION_SECRET = crypto.randomBytes(32).toString('hex');
+    fs.writeFileSync(SESSION_SECRET_FILE, SESSION_SECRET);
+  }
+}
+
+function parseCookies(cookieHeader) {
+  const out = {};
+  (cookieHeader || '').split(';').forEach(pair => {
+    const idx = pair.indexOf('=');
+    if (idx === -1) return;
+    const k = pair.slice(0, idx).trim();
+    const v = pair.slice(idx + 1).trim();
+    if (k) { try { out[k] = decodeURIComponent(v); } catch (e) { out[k] = v; } }
+  });
+  return out;
+}
+
+function getSessionEmail(req) {
+  try {
+    const raw = parseCookies(req.headers.cookie)['nct_session'];
+    if (!raw) return null;
+    const [email, expiry, sig] = raw.split('|');
+    if (!email || !expiry || !sig) return null;
+    if (Date.now() > parseInt(expiry, 10)) return null;
+    const expected = crypto.createHmac('sha256', SESSION_SECRET).update(`${email}|${expiry}`).digest('hex');
+    const sigBuf = Buffer.from(sig);
+    const expBuf = Buffer.from(expected);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
+    return email;
+  } catch (e) {
+    return null;
+  }
+}
+
+// API: Establish a session cookie after Google sign-in (needed so page navigation to a
+// "self"-visibility project URL can be recognized as coming from the owner/admin)
+app.post('/api/session/login', requireAuth, (req, res) => {
+  const email = req.authUser.email;
+  const expiry = Date.now() + 12 * 60 * 60 * 1000; // 12h
+  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(`${email}|${expiry}`).digest('hex');
+  res.cookie('nct_session', `${email}|${expiry}|${sig}`, {
+    httpOnly: true,
+    secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
+    sameSite: 'lax',
+    maxAge: 12 * 60 * 60 * 1000
+  });
+  res.json({ success: true });
+});
+
+app.post('/api/session/logout', (req, res) => {
+  res.clearCookie('nct_session');
+  res.json({ success: true });
+});
 
 // API: GitHub Auto Deploy Webhook (verified via HMAC signature, see README_DEPLOY.md)
 const DEPLOY_WEBHOOK_SECRET = process.env.DEPLOY_WEBHOOK_SECRET || '';
@@ -108,8 +189,8 @@ app.use((req, res, next) => {
 // Serve main Dashboard UI
 app.use(express.static(PUBLIC_DIR));
 
-// Serve hosted projects dynamically at /projects/<slug>
-app.use('/projects', express.static(PROJECTS_DIR));
+// Note: hosted projects (/projects/<slug> and /<slug>) are served further down by a
+// visibility-gated handler, not a blanket express.static mount — see resolveProjectRequest.
 
 // Configure Multer for temp file storage
 const upload = multer({
@@ -302,10 +383,15 @@ app.delete('/api/spaces/:name', (req, res) => {
 });
 
 // API: Get List of Deployed Projects
-app.get('/api/projects', (req, res) => {
+app.get('/api/projects', softAuth, (req, res) => {
   try {
+    const requesterEmail = req.authUser ? req.authUser.email.toLowerCase() : null;
+    const requesterIsAdmin = isAdmin(requesterEmail);
+
     const entries = fs.readdirSync(PROJECTS_DIR, { withFileTypes: true });
-    const projects = [];
+    const allProjects = [];
+    const authorSet = new Set();
+    let totalSizeBytes = 0;
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
@@ -331,12 +417,19 @@ app.get('/api/projects', (req, res) => {
           if (files.length > 0) mainFile = files[0];
         }
 
-        projects.push({
+        const author = metadata.author || { name: 'Anonymous', email: '', picture: '' };
+
+        // Real totals always reflect every project, regardless of who's asking
+        totalSizeBytes += stats.totalSize;
+        authorSet.add(author.email || author.name || 'Anonymous');
+
+        allProjects.push({
           slug,
           title: metadata.title || slug,
           description: metadata.description || 'No description provided.',
-          author: metadata.author || { name: 'Anonymous', email: '', picture: '' },
+          author,
           space: metadata.space || 'General',
+          visibility: metadata.visibility || 'public',
           viewsCount: metadata.viewsCount || 0,
           url: `/${slug}/${hasIndexHtml ? '' : mainFile}`,
           directUrl: `/${slug}`,
@@ -351,9 +444,25 @@ app.get('/api/projects', (req, res) => {
       }
     }
 
+    // Private/self projects are hidden from everyone except their owner and admins
+    const visibleProjects = allProjects.filter(p => {
+      if (p.visibility === 'public') return true;
+      const isOwner = requesterEmail && p.author.email && p.author.email.toLowerCase() === requesterEmail;
+      return isOwner || requesterIsAdmin;
+    });
+
     // Sort newest first
-    projects.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
-    res.json({ success: true, projects });
+    visibleProjects.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+
+    res.json({
+      success: true,
+      projects: visibleProjects,
+      stats: {
+        totalProjects: allProjects.length,
+        totalSizeBytes,
+        totalAuthors: authorSet.size
+      }
+    });
   } catch (err) {
     console.error('Error fetching projects:', err);
     res.status(500).json({ success: false, message: err.message });
@@ -413,6 +522,8 @@ app.post('/api/upload', requireAuth, upload.single('file'), (req, res) => {
     const rawCustomTitle = req.body.title;
     const description = (req.body.description || '').trim();
     const space = (req.body.space || 'General').trim();
+    const VALID_VISIBILITY = ['public', 'private', 'self'];
+    const visibility = VALID_VISIBILITY.includes(req.body.visibility) ? req.body.visibility : 'public';
 
     // Author identity comes only from the server-verified Google token — never from client input
     const author = req.authUser;
@@ -496,6 +607,7 @@ app.post('/api/upload', requireAuth, upload.single('file'), (req, res) => {
       title: rawCustomTitle ? rawCustomTitle.trim() : (rawCustomSlug ? rawCustomSlug.trim() : targetSlug),
       description: finalDescription || 'No description provided.',
       space: space || 'General',
+      visibility,
       viewsCount: 0,
       author: {
         name: author.name || 'Anonymous',
@@ -561,7 +673,7 @@ app.post('/api/projects/:slug/update', requireAuth, upload.single('file'), (req,
     const reqUserEmail = req.authUser.email;
     const projectAuthorEmail = (metadata.author && metadata.author.email) ? metadata.author.email : '';
 
-    if (projectAuthorEmail && reqUserEmail && projectAuthorEmail.toLowerCase() !== reqUserEmail.toLowerCase()) {
+    if (projectAuthorEmail && reqUserEmail && projectAuthorEmail.toLowerCase() !== reqUserEmail.toLowerCase() && !isAdmin(reqUserEmail)) {
       if (tempFilePath && fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
       return res.status(403).json({
         success: false,
@@ -612,6 +724,7 @@ app.post('/api/projects/:slug/update', requireAuth, upload.single('file'), (req,
     if (req.body.title) metadata.title = req.body.title.trim();
     if (req.body.description !== undefined) metadata.description = req.body.description.trim();
     if (req.body.space) metadata.space = req.body.space.trim();
+    if (['public', 'private', 'self'].includes(req.body.visibility)) metadata.visibility = req.body.visibility;
     metadata.updatedAt = new Date().toISOString();
 
     const stats = getFolderStats(targetPath);
@@ -655,7 +768,7 @@ app.put('/api/projects/:slug', requireAuth, (req, res) => {
     const projectAuthorEmail = (metadata.author && metadata.author.email) ? metadata.author.email : '';
 
     // Check ownership authorization
-    if (projectAuthorEmail && reqUserEmail && projectAuthorEmail.toLowerCase() !== reqUserEmail.toLowerCase()) {
+    if (projectAuthorEmail && reqUserEmail && projectAuthorEmail.toLowerCase() !== reqUserEmail.toLowerCase() && !isAdmin(reqUserEmail)) {
       return res.status(403).json({
         success: false,
         message: 'Permission denied: Only the original creator can edit this project.'
@@ -665,6 +778,7 @@ app.put('/api/projects/:slug', requireAuth, (req, res) => {
     if (req.body.title) metadata.title = req.body.title.trim();
     if (req.body.description !== undefined) metadata.description = req.body.description.trim();
     if (req.body.space) metadata.space = req.body.space.trim();
+    if (['public', 'private', 'self'].includes(req.body.visibility)) metadata.visibility = req.body.visibility;
     metadata.updatedAt = new Date().toISOString();
 
     fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2));
@@ -699,7 +813,7 @@ app.delete('/api/projects/:slug', requireAuth, (req, res) => {
     const reqUserEmail = req.authUser.email;
     const projectAuthorEmail = (metadata.author && metadata.author.email) ? metadata.author.email : '';
 
-    if (projectAuthorEmail && reqUserEmail && projectAuthorEmail.toLowerCase() !== reqUserEmail.toLowerCase()) {
+    if (projectAuthorEmail && reqUserEmail && projectAuthorEmail.toLowerCase() !== reqUserEmail.toLowerCase() && !isAdmin(reqUserEmail)) {
       return res.status(403).json({
         success: false,
         message: `Permission denied: Only the creator (${projectAuthorEmail}) can delete this project.`
@@ -714,45 +828,58 @@ app.delete('/api/projects/:slug', requireAuth, (req, res) => {
   }
 });
 
-// Serve hosted projects dynamically at /projects/<slug> and directly at /<slug>
-app.use('/projects', express.static(PROJECTS_DIR));
+// Serve hosted projects at both /projects/<slug> and directly at /<slug>, gated by visibility
+function resolveProjectRequest(reqPath) {
+  const strippedPath = reqPath.startsWith('/projects/') ? reqPath.slice('/projects'.length) : reqPath;
+  const parts = strippedPath.split('/').filter(Boolean);
+  if (parts.length === 0) return null;
 
-// Dynamic Router for direct domain paths: html.nctprosperatech.com/<slug>
+  const slug = parts[0];
+  const projectDir = path.join(PROJECTS_DIR, slug);
+  if (!fs.existsSync(projectDir) || !fs.statSync(projectDir).isDirectory()) return null;
+
+  const subPath = parts.slice(1).join('/');
+  let targetFile = path.join(projectDir, subPath);
+  if (fs.existsSync(targetFile) && fs.statSync(targetFile).isDirectory()) {
+    targetFile = path.join(targetFile, 'index.html');
+  }
+  if (!fs.existsSync(targetFile) || fs.statSync(targetFile).isDirectory()) return null;
+
+  return { projectDir, subPath, targetFile };
+}
+
 app.use((req, res, next) => {
   if (req.path.startsWith('/api') || req.path === '/' || req.path === '/index.html') {
     return next();
   }
 
-  const parts = req.path.split('/').filter(Boolean);
-  if (parts.length > 0) {
-    const slug = parts[0];
-    const projectDir = path.join(PROJECTS_DIR, slug);
+  const resolved = resolveProjectRequest(req.path);
+  if (!resolved) return next();
 
-    if (fs.existsSync(projectDir) && fs.statSync(projectDir).isDirectory()) {
-      const subPath = parts.slice(1).join('/');
-      let targetFile = path.join(projectDir, subPath);
+  const { projectDir, subPath, targetFile } = resolved;
+  const metaPath = path.join(projectDir, '.metadata.json');
+  let meta = {};
+  if (fs.existsSync(metaPath)) {
+    try { meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch (e) {}
+  }
 
-      if (fs.existsSync(targetFile) && fs.statSync(targetFile).isDirectory()) {
-        targetFile = path.join(targetFile, 'index.html');
-      }
-
-      if (fs.existsSync(targetFile) && !fs.statSync(targetFile).isDirectory()) {
-        // Asynchronously track view count on main index access
-        if (!subPath || subPath === 'index.html') {
-          try {
-            const metaPath = path.join(projectDir, '.metadata.json');
-            if (fs.existsSync(metaPath)) {
-              const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-              meta.viewsCount = (meta.viewsCount || 0) + 1;
-              fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
-            }
-          } catch(e) {}
-        }
-        return res.sendFile(targetFile);
-      }
+  if ((meta.visibility || 'public') === 'self') {
+    const sessionEmail = getSessionEmail(req);
+    const ownerEmail = (meta.author && meta.author.email) ? meta.author.email.toLowerCase() : '';
+    const allowed = sessionEmail && (sessionEmail.toLowerCase() === ownerEmail || isAdmin(sessionEmail));
+    if (!allowed) {
+      return res.status(403).send('<h1>403 — Private Project</h1><p>You do not have access to view this project.</p>');
     }
   }
-  next();
+
+  // Asynchronously track view count on main index access
+  if (!subPath || subPath === 'index.html') {
+    try {
+      meta.viewsCount = (meta.viewsCount || 0) + 1;
+      fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+    } catch (e) {}
+  }
+  return res.sendFile(targetFile);
 });
 
 // Fallback to Dashboard index.html for SPA routes

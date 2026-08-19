@@ -1313,6 +1313,14 @@
                             <option value="General">General</option>
                         </select>
                     </div>
+                    <div class="input-group">
+                        <label for="visibility-select-input">Visibility (การมองเห็น)</label>
+                        <select id="visibility-select-input" class="select-input">
+                            <option value="public">🌐 Public — everyone, listed</option>
+                            <option value="private">🔗 Private — link only, unlisted</option>
+                            <option value="self">🔒 Self — only me</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="input-group">
@@ -1444,6 +1452,15 @@
             </div>
 
             <div class="input-group">
+                <label>Visibility (การมองเห็น)</label>
+                <select id="update-visibility-select" class="select-input">
+                    <option value="public">🌐 Public — everyone, listed</option>
+                    <option value="private">🔗 Private — link only, unlisted</option>
+                    <option value="self">🔒 Self — only me</option>
+                </select>
+            </div>
+
+            <div class="input-group">
                 <label>Description (รายละเอียด)</label>
                 <textarea id="update-desc-input" class="textarea-input"></textarea>
             </div>
@@ -1451,6 +1468,22 @@
             <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
                 <button onclick="closeUpdateModal()" class="btn-action" style="flex: none;">Cancel</button>
                 <button id="btn-confirm-update" onclick="confirmUpdateProject()" class="btn-upload" style="width: auto; height: 38px; padding: 0 20px;">Save Updates</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="delete-confirm-modal">
+        <div class="dialog-card" style="max-width: 420px;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; color: #fca5a5;">🗑️ Delete Project</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted)">This will permanently delete <strong id="delete-confirm-slug"></strong>. This action cannot be undone.</p>
+            <div class="input-group">
+                <label>Type <strong>delete</strong> to confirm</label>
+                <input type="text" id="delete-confirm-input" class="text-input" placeholder="delete" oninput="updateDeleteConfirmState()" autocomplete="off">
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                <button onclick="closeDeleteConfirmModal()" class="btn-action" style="flex: none;">Cancel</button>
+                <button id="btn-confirm-delete" onclick="executeDeleteProject()" class="btn-upload" disabled style="width: auto; height: 38px; padding: 0 20px; background: #dc2626; opacity: 0.5;">Delete</button>
             </div>
         </div>
     </div>
@@ -1541,6 +1574,7 @@
         const titleInput = document.getElementById('title-input');
         const descInput = document.getElementById('desc-input');
         const spaceSelectInput = document.getElementById('space-select-input');
+        const visibilitySelectInput = document.getElementById('visibility-select-input');
         const btnDeploy = document.getElementById('btn-deploy');
         
         const spacesTabsContainer = document.getElementById('spaces-tabs');
@@ -1558,6 +1592,12 @@
 
         const GOOGLE_CLIENT_ID = "555675730734-h761tbt5a5ivu1c41agdi8h3v23ffr4o.apps.googleusercontent.com";
 
+        function visibilityInfo(visibility) {
+            if (visibility === 'self') return { icon: '🔒', label: 'Self', color: '#f87171', bg: 'rgba(248, 113, 113, 0.15)', border: 'rgba(248, 113, 113, 0.3)' };
+            if (visibility === 'private') return { icon: '🔗', label: 'Private', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.15)', border: 'rgba(251, 191, 36, 0.3)' };
+            return { icon: '🌐', label: 'Public', color: '#34d399', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.3)' };
+        }
+
         function escapeHtml(str) {
             if (str === null || str === undefined) return '';
             return String(str)
@@ -1574,6 +1614,7 @@
             if (savedUser) {
                 try {
                     currentUser = JSON.parse(savedUser);
+                    if (currentUser && currentUser.idToken) establishSession(currentUser.idToken);
                 } catch(e) {}
             }
             renderUserHeader();
@@ -1627,10 +1668,23 @@
                     idToken: response.credential
                 };
                 localStorage.setItem('nct_user_profile', JSON.stringify(currentUser));
+                establishSession(currentUser.idToken);
                 renderUserHeader();
                 renderProjects();
+                loadProjects();
                 showToast(`Welcome, ${currentUser.name}!`, 'success');
             }
+        }
+
+        // Sets the httpOnly session cookie so "Self"-visibility pages can recognize the
+        // owner on a plain page navigation, which can't carry an Authorization header.
+        async function establishSession(idToken) {
+            try {
+                await fetch('/api/session/login', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+            } catch (e) {}
         }
 
         function parseJwt(token) {
@@ -1687,7 +1741,9 @@
         function logout() {
             currentUser = null;
             localStorage.removeItem('nct_user_profile');
+            fetch('/api/session/logout', { method: 'POST' }).catch(() => {});
             renderUserHeader();
+            loadProjects();
             renderProjects();
             showToast('Signed out', 'success');
         }
@@ -1767,6 +1823,7 @@
             formData.append('title', titleInput.value.trim());
             formData.append('space', spaceSelectInput.value || 'General');
             formData.append('description', descInput.value.trim());
+            formData.append('visibility', visibilitySelectInput.value || 'public');
 
             btnDeploy.disabled = true;
             btnDeploy.innerHTML = '<span>Deploying...</span> ⏳';
@@ -1855,13 +1912,17 @@
         }
 
         // Load Projects
+        let latestStats = { totalProjects: 0, totalSizeBytes: 0, totalAuthors: 0 };
+
         async function loadProjects() {
             try {
-                const res = await fetch('/api/projects');
+                const headers = currentUser ? { 'Authorization': `Bearer ${currentUser.idToken}` } : {};
+                const res = await fetch('/api/projects', { headers });
                 const data = await res.json();
 
                 if (data.success) {
                     allProjects = data.projects;
+                    latestStats = data.stats || latestStats;
                     updateStats();
                     renderSpacesTabs();
                     renderProjects();
@@ -1917,13 +1978,14 @@
                 const displayDate = formatDateShort(proj.updatedAt || proj.createdAt);
                 const views = proj.viewsCount || 0;
                 const displaySpace = proj.space || 'General';
+                const vis = visibilityInfo(proj.visibility);
 
                 return `
                     <tr>
                         <td>
-                            <span class="status-pill">
-                                <span class="status-dot-small"></span>
-                                <span>Public</span>
+                            <span class="status-pill" style="background:${vis.bg}; border-color:${vis.border}; color:${vis.color};">
+                                <span class="status-dot-small" style="background-color:${vis.color};"></span>
+                                <span>${vis.icon} ${vis.label}</span>
                             </span>
                         </td>
                         <td>
@@ -1990,13 +2052,17 @@
                 const author = proj.author || { name: 'Anonymous', email: '' };
                 const authorAvatar = author.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name || 'A')}&background=6366f1&color=fff`;
                 const isOwner = currentUser && author.email && currentUser.email.toLowerCase() === author.email.toLowerCase();
+                const vis = visibilityInfo(proj.visibility);
 
                 return `
                     <div class="project-card">
                         <div>
                             <div class="project-header">
                                 <div class="project-title">${escapeHtml(proj.title)}</div>
-                                <span class="badge-type ${badgeClass}">${proj.fileType}</span>
+                                <div style="display:flex; gap:6px; flex-shrink:0;">
+                                    <span class="badge-type" style="background:${vis.bg}; border-color:${vis.border}; color:${vis.color};">${vis.icon} ${vis.label}</span>
+                                    <span class="badge-type ${badgeClass}">${proj.fileType}</span>
+                                </div>
                             </div>
                             
                             <div class="project-url">
@@ -2067,13 +2133,12 @@
         // Search Filter
         searchInput.addEventListener('input', () => renderProjects());
 
-        // Update Stats
+        // Update Stats — always reflects the true totals across every project (public,
+        // private, and self), regardless of which ones the current viewer can actually list
         function updateStats() {
-            statTotalProjects.textContent = allProjects.length;
-            const totalBytes = allProjects.reduce((acc, curr) => acc + (curr.sizeBytes || 0), 0);
-            statTotalSize.textContent = formatBytes(totalBytes);
-            const authorsSet = new Set(allProjects.map(p => (p.author && p.author.email) ? p.author.email : p.author.name));
-            statAuthorsCount.textContent = authorsSet.size;
+            statTotalProjects.textContent = latestStats.totalProjects;
+            statTotalSize.textContent = formatBytes(latestStats.totalSizeBytes);
+            statAuthorsCount.textContent = latestStats.totalAuthors;
         }
 
         // Create Space Handler
@@ -2128,6 +2193,9 @@
             const spaceSelect = document.getElementById('update-space-select');
             if (spaceSelect) spaceSelect.value = proj.space || 'General';
 
+            const visibilitySelect = document.getElementById('update-visibility-select');
+            if (visibilitySelect) visibilitySelect.value = proj.visibility || 'public';
+
             document.getElementById('update-project-modal').classList.add('active');
         }
 
@@ -2141,6 +2209,7 @@
             const title = document.getElementById('update-title-input').value.trim();
             const description = document.getElementById('update-desc-input').value.trim();
             const space = document.getElementById('update-space-select').value || 'General';
+            const visibility = document.getElementById('update-visibility-select').value || 'public';
             const fileInput = document.getElementById('update-file-input');
             const file = fileInput.files.length > 0 ? fileInput.files[0] : null;
 
@@ -2159,6 +2228,7 @@
             formData.append('title', title);
             formData.append('description', description);
             formData.append('space', space);
+            formData.append('visibility', visibility);
 
             try {
                 const res = await fetch(`/api/projects/${updatingSlug}/update`, {
@@ -2225,7 +2295,9 @@
         }
 
         // Delete Project (Author Protected)
-        async function deleteProject(slug, authorEmail) {
+        let pendingDeleteSlug = '';
+
+        function deleteProject(slug, authorEmail) {
             if (!currentUser) {
                 showToast('Please sign in to delete projects', 'error');
                 promptGoogleLogin();
@@ -2237,7 +2309,30 @@
                 return;
             }
 
-            if (!confirm(`Are you sure you want to delete project '${slug}'? This action cannot be undone.`)) return;
+            pendingDeleteSlug = slug;
+            document.getElementById('delete-confirm-slug').textContent = slug;
+            document.getElementById('delete-confirm-input').value = '';
+            updateDeleteConfirmState();
+            document.getElementById('delete-confirm-modal').classList.add('active');
+        }
+
+        function closeDeleteConfirmModal() {
+            document.getElementById('delete-confirm-modal').classList.remove('active');
+            pendingDeleteSlug = '';
+        }
+
+        function updateDeleteConfirmState() {
+            const typed = document.getElementById('delete-confirm-input').value.trim().toLowerCase();
+            const btn = document.getElementById('btn-confirm-delete');
+            const ok = typed === 'delete';
+            btn.disabled = !ok;
+            btn.style.opacity = ok ? '1' : '0.5';
+        }
+
+        async function executeDeleteProject() {
+            const slug = pendingDeleteSlug;
+            if (!slug) return;
+            closeDeleteConfirmModal();
 
             try {
                 const res = await fetch(`/api/projects/${slug}`, {
