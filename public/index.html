@@ -1370,6 +1370,7 @@
                         <tr>
                             <th>Status</th>
                             <th>Project</th>
+                            <th>Owner</th>
                             <th>Space</th>
                             <th>Modified</th>
                             <th>Views</th>
@@ -1903,7 +1904,7 @@
                         <p>Sign in and upload a project above to showcase it here!</p>
                     </div>
                 `;
-                projectsTableBody.innerHTML = `<tr><td colspan="6">${emptyHtml}</td></tr>`;
+                projectsTableBody.innerHTML = `<tr><td colspan="7">${emptyHtml}</td></tr>`;
                 projectsContainer.innerHTML = emptyHtml;
                 return;
             }
@@ -1934,6 +1935,12 @@
                                     </a>
                                     <div class="table-project-title">${escapeHtml(proj.title)}</div>
                                 </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="author-badge" title="${escapeHtml(author.email || 'Anonymous')}" style="display: flex; align-items: center; gap: 6px;">
+                                <img src="${author.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name || 'A')}&background=6366f1&color=fff`}" alt="" style="width: 20px; height: 20px; border-radius: 50%;">
+                                <span style="color: #cbd5e1; font-size: 0.8rem;">${escapeHtml(author.name || 'Anonymous')}</span>
                             </div>
                         </td>
                         <td>
