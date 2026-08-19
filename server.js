@@ -13,7 +13,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Google OAuth verification (Client ID is public info; the secret is never used server-side)
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '555675730734-motc50fhrmgph8rh453ro0gvk56tv8e7.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '555675730734-h761tbt5a5ivu1c41agdi8h3v23ffr4o.apps.googleusercontent.com';
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // Verify a Google ID token and return the authenticated user, or null if invalid
