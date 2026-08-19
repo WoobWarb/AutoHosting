@@ -1,19 +1,73 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const multer = require('multer');
 const AdmZip = require('adm-zip');
 const slugify = require('slugify');
 const cors = require('cors');
 const { exec } = require('child_process');
+const { OAuth2Client } = require('google-auth-library');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// API: GitHub Auto Deploy Webhook
-app.post('/api/webhook/deploy', (req, res) => {
+// Google OAuth verification (Client ID is public info; the secret is never used server-side)
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '555675730734-motc50fhrmgph8rh453ro0gvk56tv8e7.apps.googleusercontent.com';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+// Verify a Google ID token and return the authenticated user, or null if invalid
+async function verifyGoogleToken(idToken) {
+  if (!idToken) return null;
+  try {
+    const ticket = await googleClient.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID });
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) return null;
+    return {
+      email: payload.email,
+      name: payload.name || payload.email.split('@')[0],
+      picture: payload.picture || '',
+      googleId: payload.sub
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+// Middleware: require a valid Google ID token in the Authorization header.
+// Attaches the server-verified identity to req.authUser — never trust a client-supplied email.
+async function requireAuth(req, res, next) {
+  const authHeader = req.headers['authorization'] || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const user = await verifyGoogleToken(idToken);
+  if (!user) {
+    return res.status(401).json({ success: false, message: 'Authentication required. Please sign in with Google.' });
+  }
+  req.authUser = user;
+  next();
+}
+
+// API: GitHub Auto Deploy Webhook (verified via HMAC signature, see README_DEPLOY.md)
+const DEPLOY_WEBHOOK_SECRET = process.env.DEPLOY_WEBHOOK_SECRET || '';
+
+app.post('/api/webhook/deploy', express.raw({ type: '*/*', limit: '5mb' }), (req, res) => {
+  if (!DEPLOY_WEBHOOK_SECRET) {
+    console.error('Webhook rejected: DEPLOY_WEBHOOK_SECRET is not configured on the server.');
+    return res.status(503).json({ success: false, message: 'Webhook not configured.' });
+  }
+
+  const signature = req.headers['x-hub-signature-256'] || '';
+  const expectedSignature = 'sha256=' + crypto.createHmac('sha256', DEPLOY_WEBHOOK_SECRET).update(req.body || Buffer.alloc(0)).digest('hex');
+
+  const sigBuf = Buffer.from(signature);
+  const expBuf = Buffer.from(expectedSignature);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    console.warn('Webhook rejected: invalid or missing signature.');
+    return res.status(401).json({ success: false, message: 'Invalid signature.' });
+  }
+
   console.log('🔄 Webhook received: Pulling latest changes from GitHub...');
-  
+
   exec('git pull origin main && npm install --production && pm2 restart html-uploader', { cwd: __dirname }, (error, stdout, stderr) => {
     if (error) {
       console.error(`Auto Deploy Error: ${error.message}`);
@@ -302,7 +356,7 @@ function getUserTotalStorageBytes(userEmail) {
 }
 
 // API: Upload HTML or ZIP
-app.post('/api/upload', upload.single('file'), (req, res) => {
+app.post('/api/upload', requireAuth, upload.single('file'), (req, res) => {
   const tempFilePath = req.file ? req.file.path : null;
 
   try {
@@ -325,22 +379,17 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     const rawCustomTitle = req.body.title;
     const description = (req.body.description || '').trim();
     const space = (req.body.space || 'General').trim();
-    
-    // Parse author JSON payload
-    let author = { name: 'Anonymous', email: '', picture: '' };
-    if (req.body.author) {
-      try {
-        author = typeof req.body.author === 'string' ? JSON.parse(req.body.author) : req.body.author;
-      } catch (e) {}
-    }
+
+    // Author identity comes only from the server-verified Google token — never from client input
+    const author = req.authUser;
 
     // Enforce Per-User Storage Quota
-    const userEmail = (author.email || '').toLowerCase();
+    const userEmail = author.email.toLowerCase();
     const isNctTeam = userEmail.endsWith('@nctprosperatech.com');
     const userQuotaBytes = isNctTeam ? QUOTA_NCT_TEAM_BYTES : QUOTA_PUBLIC_USER_BYTES;
     const currentUsedBytes = getUserTotalStorageBytes(userEmail);
 
-    if (userEmail && (currentUsedBytes + req.file.size > userQuotaBytes)) {
+    if (currentUsedBytes + req.file.size > userQuotaBytes) {
       if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
       const usedMb = (currentUsedBytes / (1024 * 1024)).toFixed(1);
       const limitMb = (userQuotaBytes / (1024 * 1024)).toFixed(0);
@@ -438,7 +487,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 });
 
 // API: Re-upload / Update Project Files or Metadata
-app.post('/api/projects/:slug/update', upload.single('file'), (req, res) => {
+app.post('/api/projects/:slug/update', requireAuth, upload.single('file'), (req, res) => {
   const tempFilePath = req.file ? req.file.path : null;
 
   try {
@@ -459,8 +508,8 @@ app.post('/api/projects/:slug/update', upload.single('file'), (req, res) => {
       } catch (e) {}
     }
 
-    // Authorization check
-    const reqUserEmail = req.body.userEmail || req.headers['x-user-email'] || '';
+    // Authorization check — reqUserEmail comes from the server-verified token, never the client
+    const reqUserEmail = req.authUser.email;
     const projectAuthorEmail = (metadata.author && metadata.author.email) ? metadata.author.email : '';
 
     if (projectAuthorEmail && reqUserEmail && projectAuthorEmail.toLowerCase() !== reqUserEmail.toLowerCase()) {
@@ -535,7 +584,7 @@ app.post('/api/projects/:slug/update', upload.single('file'), (req, res) => {
 });
 
 // API: Update Project Description / Metadata (Author Only)
-app.put('/api/projects/:slug', (req, res) => {
+app.put('/api/projects/:slug', requireAuth, (req, res) => {
   try {
     const rawSlug = req.params.slug;
     const safeSlug = path.basename(rawSlug);
@@ -553,7 +602,7 @@ app.put('/api/projects/:slug', (req, res) => {
       } catch (e) {}
     }
 
-    const reqUserEmail = req.body.userEmail || '';
+    const reqUserEmail = req.authUser.email;
     const projectAuthorEmail = (metadata.author && metadata.author.email) ? metadata.author.email : '';
 
     // Check ownership authorization
@@ -579,7 +628,7 @@ app.put('/api/projects/:slug', (req, res) => {
 });
 
 // API: Delete Project (Author Only)
-app.delete('/api/projects/:slug', (req, res) => {
+app.delete('/api/projects/:slug', requireAuth, (req, res) => {
   try {
     const rawSlug = req.params.slug;
     const safeSlug = path.basename(rawSlug); // Protect against traversal
@@ -597,8 +646,8 @@ app.delete('/api/projects/:slug', (req, res) => {
       } catch (e) {}
     }
 
-    // Ownership Verification
-    const reqUserEmail = req.headers['x-user-email'] || req.query.userEmail || '';
+    // Ownership Verification — reqUserEmail comes from the server-verified token, never the client
+    const reqUserEmail = req.authUser.email;
     const projectAuthorEmail = (metadata.author && metadata.author.email) ? metadata.author.email : '';
 
     if (projectAuthorEmail && reqUserEmail && projectAuthorEmail.toLowerCase() !== reqUserEmail.toLowerCase()) {

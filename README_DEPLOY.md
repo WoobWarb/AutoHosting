@@ -64,6 +64,23 @@ pm2 startup
 
 ---
 
+## 🔐 3.1 ตั้งค่า Webhook Secret (จำเป็นสำหรับ Auto Deploy)
+
+Endpoint `/api/webhook/deploy` ตรวจสอบลายเซ็น HMAC ของ GitHub ก่อนจะสั่ง `git pull` — ถ้าไม่ตั้งค่า secret ไว้ endpoint จะปฏิเสธทุก request (503)
+
+ตั้งค่า environment variable บน Server ก่อนสั่ง `pm2 start`:
+```bash
+export DEPLOY_WEBHOOK_SECRET="ใส่ค่าสุ่มที่คาดเดายากที่นี่"
+pm2 start server.js --name "html-uploader" --update-env
+```
+
+จากนั้นไปตั้งค่า Webhook ใน GitHub repo (Settings → Webhooks → Add webhook):
+- Payload URL: `https://your-domain/api/webhook/deploy`
+- Content type: `application/json`
+- Secret: ใส่ค่าเดียวกับ `DEPLOY_WEBHOOK_SECRET` ด้านบน
+
+---
+
 ## 🌐 4. ตั้งค่า Nginx Reverse Proxy (เชื่อมต่อกับ Domain / Subdomain)
 
 จากภาพ DNS Record ของคุณ ที่มีการชี้ A Record มายัง IP `178.128.59.217` (เช่น `bems`, `tracker` หรือหากเพิ่ม subdomain ใหม่ เช่น `deploy` / `projects`)

@@ -1517,26 +1517,6 @@
         </div>
     </div>
 
-    <!-- Demo / Custom Google Login Prompt Modal -->
-    <div class="modal-overlay" id="demo-login-modal">
-        <div class="dialog-card">
-            <h3 style="font-size: 1.1rem; font-weight: 700;">🔑 Google Sign-In Account</h3>
-            <p style="font-size: 0.85rem; color: var(--text-muted)">กรอกอีเมลและชื่อ Google Account ของคุณเพื่อใช้สร้างและปกป้องโปรเจกต์:</p>
-            <div class="input-group">
-                <label>Your Name (ชื่อผู้ใช้)</label>
-                <input type="text" id="login-name-input" class="text-input" placeholder="e.g. Somchai Prasert">
-            </div>
-            <div class="input-group">
-                <label>Your Google Email (อีเมล)</label>
-                <input type="email" id="login-email-input" class="text-input" placeholder="e.g. somchai@gmail.com">
-            </div>
-            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
-                <button onclick="closeDemoLoginModal()" class="btn-action" style="flex: none;">Cancel</button>
-                <button onclick="confirmDemoLogin()" class="btn-upload" style="width: auto; height: 38px; padding: 0 20px;">Save & Sign In</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         // State
         let currentUser = null;
@@ -1640,10 +1620,12 @@
                     name: payload.name || payload.email.split('@')[0],
                     email: payload.email,
                     picture: payload.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(payload.name)}&background=6366f1&color=fff`,
-                    googleId: payload.sub
+                    googleId: payload.sub,
+                    // Raw ID token — sent to the server as Bearer auth so it can verify identity itself.
+                    // The decoded fields above are for display only and are never trusted for authorization.
+                    idToken: response.credential
                 };
                 localStorage.setItem('nct_user_profile', JSON.stringify(currentUser));
-                closeDemoLoginModal();
                 renderUserHeader();
                 renderProjects();
                 showToast(`Welcome, ${currentUser.name}!`, 'success');
@@ -1683,49 +1665,22 @@
             updateDeployButtonState();
         }
 
+        // NOTE: identity can only come from a real Google Sign-In credential — the server
+        // verifies the ID token itself, so there is no client-side "type your email" fallback.
         function promptGoogleLogin() {
             if (window.google && google.accounts && google.accounts.id) {
                 try {
                     google.accounts.id.prompt((notification) => {
                         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                            document.getElementById('demo-login-modal').classList.add('active');
+                            showToast('Please use the "Sign in with Google" button (check for a blocked pop-up or disabled third-party cookies).', 'error');
                         }
                     });
                 } catch(e) {
-                    document.getElementById('demo-login-modal').classList.add('active');
+                    showToast('Google Sign-In failed to load. Please refresh the page and try again.', 'error');
                 }
             } else {
-                document.getElementById('demo-login-modal').classList.add('active');
+                showToast('Google Sign-In failed to load. Please refresh the page and try again.', 'error');
             }
-        }
-
-        function closeDemoLoginModal() {
-            document.getElementById('demo-login-modal').classList.remove('active');
-        }
-
-        function confirmDemoLogin() {
-            const nameInput = document.getElementById('login-name-input');
-            const emailInput = document.getElementById('login-email-input');
-            const name = nameInput ? nameInput.value.trim() : '';
-            const email = emailInput ? emailInput.value.trim() : '';
-
-            if (!email || !email.includes('@')) {
-                showToast('Please enter a valid Google email address', 'error');
-                return;
-            }
-
-            currentUser = {
-                name: name || email.split('@')[0],
-                email: email,
-                picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(name || email)}&background=6366f1&color=fff`,
-                googleId: 'custom_' + Date.now()
-            };
-
-            localStorage.setItem('nct_user_profile', JSON.stringify(currentUser));
-            closeDemoLoginModal();
-            renderUserHeader();
-            renderProjects();
-            showToast(`Signed in as ${currentUser.name}`, 'success');
         }
 
         function logout() {
@@ -1811,7 +1766,6 @@
             formData.append('title', titleInput.value.trim());
             formData.append('space', spaceSelectInput.value || 'General');
             formData.append('description', descInput.value.trim());
-            formData.append('author', JSON.stringify(currentUser));
 
             btnDeploy.disabled = true;
             btnDeploy.innerHTML = '<span>Deploying...</span> ⏳';
@@ -1819,6 +1773,7 @@
             try {
                 const res = await fetch('/api/upload', {
                     method: 'POST',
+                    headers: { 'Authorization': `Bearer ${currentUser.idToken}` },
                     body: formData
                 });
 
@@ -1834,6 +1789,9 @@
                     selectedFileBadge.style.display = 'none';
                     loadProjects();
                     loadSpaces();
+                } else if (res.status === 401) {
+                    showToast('Your session expired. Please sign in again.', 'error');
+                    logout();
                 } else {
                     showToast(data.message || 'Upload failed', 'error');
                 }
@@ -2182,19 +2140,22 @@
             btnSave.disabled = true;
             btnSave.textContent = 'Saving...';
 
+            if (!currentUser) {
+                showToast('Please sign in to update projects', 'error');
+                promptGoogleLogin();
+                return;
+            }
+
             const formData = new FormData();
             if (file) formData.append('file', file);
             formData.append('title', title);
             formData.append('description', description);
             formData.append('space', space);
-            if (currentUser) formData.append('userEmail', currentUser.email);
 
             try {
                 const res = await fetch(`/api/projects/${updatingSlug}/update`, {
                     method: 'POST',
-                    headers: {
-                        'x-user-email': currentUser ? currentUser.email : ''
-                    },
+                    headers: { 'Authorization': `Bearer ${currentUser.idToken}` },
                     body: formData
                 });
                 const data = await res.json();
@@ -2203,6 +2164,9 @@
                     closeUpdateModal();
                     loadProjects();
                     loadSpaces();
+                } else if (res.status === 401) {
+                    showToast('Your session expired. Please sign in again.', 'error');
+                    logout();
                 } else {
                     showToast(data.message || 'Update failed', 'error');
                 }
@@ -2270,9 +2234,7 @@
             try {
                 const res = await fetch(`/api/projects/${slug}`, {
                     method: 'DELETE',
-                    headers: {
-                        'x-user-email': currentUser.email
-                    }
+                    headers: { 'Authorization': `Bearer ${currentUser.idToken}` }
                 });
 
                 const data = await res.json();
@@ -2280,6 +2242,9 @@
                     showToast(`Project '${slug}' deleted`, 'success');
                     loadProjects();
                     loadSpaces();
+                } else if (res.status === 401) {
+                    showToast('Your session expired. Please sign in again.', 'error');
+                    logout();
                 } else {
                     showToast(data.message || 'Delete failed', 'error');
                 }
