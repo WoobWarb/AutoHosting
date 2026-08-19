@@ -126,6 +126,40 @@ function cleanSlug(input) {
   }) || 'project';
 }
 
+// Helper: Best-effort short summary pulled from the page itself, used when no description was typed
+function extractAutoDescription(htmlContent) {
+  try {
+    const metaMatch = htmlContent.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["']/i)
+      || htmlContent.match(/<meta[^>]+content=["']([^"']*)["'][^>]*name=["']description["']/i);
+    if (metaMatch && metaMatch[1].trim()) {
+      return metaMatch[1].trim().slice(0, 200);
+    }
+
+    const titleMatch = htmlContent.match(/<title[^>]*>([^<]*)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
+
+    const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    const text = (bodyMatch ? bodyMatch[1] : htmlContent)
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (title && text) {
+      const snippet = text.slice(0, 140).trim();
+      return snippet ? `${title} — ${snippet}${text.length > 140 ? '...' : ''}` : title;
+    }
+    if (title) return title;
+    if (text) return text.slice(0, 160).trim() + (text.length > 160 ? '...' : '');
+    return '';
+  } catch (e) {
+    return '';
+  }
+}
+
 // Helper: Ensure unique slug directory name
 function getUniqueSlug(baseSlug) {
   let slug = baseSlug;
@@ -440,12 +474,27 @@ app.post('/api/upload', requireAuth, upload.single('file'), (req, res) => {
     // Clean up temp upload file
     if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
 
+    // If no description was typed, try to pull a short summary from the page itself
+    let finalDescription = description;
+    if (!finalDescription) {
+      try {
+        let mainHtmlPath = path.join(targetPath, 'index.html');
+        if (!fs.existsSync(mainHtmlPath)) {
+          const htmlFiles = fs.readdirSync(targetPath).filter(f => f.toLowerCase().endsWith('.html'));
+          if (htmlFiles.length > 0) mainHtmlPath = path.join(targetPath, htmlFiles[0]);
+        }
+        if (fs.existsSync(mainHtmlPath)) {
+          finalDescription = extractAutoDescription(fs.readFileSync(mainHtmlPath, 'utf8'));
+        }
+      } catch (e) {}
+    }
+
     // Save Metadata
     const stats = getFolderStats(targetPath);
     const metadata = {
       slug: targetSlug,
       title: rawCustomTitle ? rawCustomTitle.trim() : (rawCustomSlug ? rawCustomSlug.trim() : targetSlug),
-      description: description || 'No description provided.',
+      description: finalDescription || 'No description provided.',
       space: space || 'General',
       viewsCount: 0,
       author: {
