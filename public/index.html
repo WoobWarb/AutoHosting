@@ -828,6 +828,57 @@
             padding: 6px 9px;
         }
 
+        /* Actions dropdown menu ("More") */
+        .action-dropdown-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .action-dropdown-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 4px;
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+            min-width: 190px;
+            z-index: 100;
+            overflow: hidden;
+            text-align: left;
+        }
+
+        .action-dropdown-menu.open {
+            display: block;
+        }
+
+        .action-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .action-dropdown-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .action-dropdown-item.danger {
+            color: #fca5a5;
+        }
+
+        .action-dropdown-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 4px 0;
+        }
+
         /* Projects Grid */
         .projects-grid {
             display: grid;
@@ -1261,6 +1312,51 @@
             </div>
         </div>
 
+        <!-- How To Use Guide -->
+        <div class="upload-card" id="guide-section">
+            <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleGuide()">
+                <h2 style="font-size:1.1rem; font-weight:700; color:#fff; margin:0;">❓ วิธีใช้งาน (How to Use)</h2>
+                <span id="guide-toggle-icon" style="font-size:1.2rem; color:var(--text-muted);">▾</span>
+            </div>
+            <div id="guide-content" style="display:none; flex-direction:column; gap:14px;">
+                <div style="display:flex; gap:14px; align-items:flex-start;">
+                    <div style="font-size:1.4rem; line-height:1;">1️⃣</div>
+                    <div>
+                        <strong style="color:#fff;">Sign in with Google</strong>
+                        <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 0;">กดปุ่ม "Sign in with Google" มุมขวาบน เพื่อยืนยันตัวตนก่อนอัปโหลดหรือจัดการโปรเจกต์</p>
+                    </div>
+                </div>
+                <div style="display:flex; gap:14px; align-items:flex-start;">
+                    <div style="font-size:1.4rem; line-height:1;">2️⃣</div>
+                    <div>
+                        <strong style="color:#fff;">เลือกไฟล์</strong>
+                        <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 0;">ลากไฟล์ <code>.html</code> หรือ <code>.zip</code> มาวางในกล่องอัปโหลดด้านล่าง — ถ้าเว็บมีรูป/CSS/JS แยกไฟล์ ต้อง <strong>zip รวมทุกไฟล์เข้าด้วยกันก่อน</strong> ไม่งั้นรูปจะหายตอนขึ้นเว็บจริง</p>
+                    </div>
+                </div>
+                <div style="display:flex; gap:14px; align-items:flex-start;">
+                    <div style="font-size:1.4rem; line-height:1;">3️⃣</div>
+                    <div>
+                        <strong style="color:#fff;">ตั้งค่าโปรเจกต์</strong>
+                        <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 0;">กรอกชื่อ URL (Slug), ชื่อโครงการ, หมวดหมู่ (Space) และเลือก Visibility — 🌐 Public ให้ทุกคนเห็น, 🔗 Private ไม่โชว์ในรายการแต่ส่งลิงก์ให้คนอื่นดูได้, 🔒 Self เห็นคนเดียว</p>
+                    </div>
+                </div>
+                <div style="display:flex; gap:14px; align-items:flex-start;">
+                    <div style="font-size:1.4rem; line-height:1;">4️⃣</div>
+                    <div>
+                        <strong style="color:#fff;">กด "Deploy Project"</strong>
+                        <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 0;">เว็บจะขึ้นออนไลน์ทันทีที่ <code>html.nctprosperatech.com/ชื่อโปรเจกต์</code></p>
+                    </div>
+                </div>
+                <div style="display:flex; gap:14px; align-items:flex-start;">
+                    <div style="font-size:1.4rem; line-height:1;">5️⃣</div>
+                    <div>
+                        <strong style="color:#fff;">จัดการโปรเจกต์ทีหลัง</strong>
+                        <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 0;">กด <strong>✏️ Update</strong> เพื่อแก้ไฟล์/ชื่อ/Visibility หรือกด <strong>⋮</strong> เพื่อ Copy Link, Share, QR Code, Embed Code, Download .zip, Archive หรือ Delete</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Upload Form Card -->
         <div class="upload-card" id="upload-section">
             <div class="section-header">
@@ -1367,8 +1463,12 @@
                 </div>
             </div>
 
-            <div class="search-bar">
-                <input type="text" id="search-input" class="search-input" placeholder="Search by title, slug, space, author or description...">
+            <div class="search-bar" style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="search-input" class="search-input" placeholder="Search by title, slug, space, author or description..." style="flex: 1;">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; cursor: pointer;">
+                    <input type="checkbox" id="show-archived-toggle" onchange="renderProjects()">
+                    📦 Show Archived
+                </label>
             </div>
 
             <!-- Table View Container -->
@@ -1488,6 +1588,19 @@
         </div>
     </div>
 
+    <!-- Embed Code Modal -->
+    <div class="modal-overlay" id="embed-modal">
+        <div class="dialog-card" style="max-width: 520px;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; color: #fff;">🧩 Embed <span id="embed-modal-title" style="color: var(--accent-cyan);"></span></h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted)">Paste this snippet into another page to embed the project inline:</p>
+            <textarea id="embed-modal-code" class="textarea-input" readonly style="font-family: monospace; font-size: 0.8rem; min-height: 100px;" onclick="this.select()"></textarea>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                <button onclick="closeEmbedModal()" class="btn-action" style="flex: none;">Close</button>
+                <button onclick="copyEmbedCode()" class="btn-upload" style="width: auto; height: 38px; padding: 0 20px;">📋 Copy Code</button>
+            </div>
+        </div>
+    </div>
+
     <!-- QR Code Modal -->
     <div class="modal-overlay" id="qr-modal">
         <div class="dialog-card" style="max-width: 380px; text-align: center; align-items: center;">
@@ -1591,6 +1704,16 @@
         const statAuthorsCount = document.getElementById('stat-authors-count');
 
         const GOOGLE_CLIENT_ID = "555675730734-h761tbt5a5ivu1c41agdi8h3v23ffr4o.apps.googleusercontent.com";
+        // Client-side only, for UI hints (which action buttons to show) — the server enforces this independently
+        const ADMIN_EMAIL = "0deathwolf@gmail.com";
+
+        function toggleGuide() {
+            const content = document.getElementById('guide-content');
+            const icon = document.getElementById('guide-toggle-icon');
+            const isOpen = content.style.display === 'flex';
+            content.style.display = isOpen ? 'none' : 'flex';
+            icon.textContent = isOpen ? '▾' : '▴';
+        }
 
         function visibilityInfo(visibility) {
             if (visibility === 'self') return { icon: '🔒', label: 'Self', color: '#f87171', bg: 'rgba(248, 113, 113, 0.15)', border: 'rgba(248, 113, 113, 0.3)' };
@@ -1876,8 +1999,16 @@
             }
         }
 
+        // Projects to actually display — archived ones are hidden unless "Show Archived" is checked
+        function getDisplayProjects() {
+            const showArchived = document.getElementById('show-archived-toggle');
+            if (showArchived && showArchived.checked) return allProjects;
+            return allProjects.filter(p => !p.archived);
+        }
+
         function renderSpacesTabs() {
-            const totalCount = allProjects.length;
+            const displayProjects = getDisplayProjects();
+            const totalCount = displayProjects.length;
             let html = `
                 <div class="space-tab ${activeSpace === 'All' ? 'active' : ''}" onclick="selectSpace('All')">
                     <span>All</span>
@@ -1886,7 +2017,7 @@
             `;
 
             allSpaces.forEach(sp => {
-                const spCount = allProjects.filter(p => (p.space || 'General') === sp.name).length;
+                const spCount = displayProjects.filter(p => (p.space || 'General') === sp.name).length;
                 html += `
                     <div class="space-tab ${activeSpace === sp.name ? 'active' : ''}" onclick="selectSpace('${escapeHtml(sp.name)}')">
                         <span>${escapeHtml(sp.name)}</span>
@@ -1935,7 +2066,7 @@
         // Render Projects (Table or Grid)
         function renderProjects() {
             const query = (searchInput.value || '').toLowerCase().trim();
-            let filtered = allProjects;
+            let filtered = getDisplayProjects();
 
             // Space Filter
             if (activeSpace !== 'All') {
@@ -1944,8 +2075,8 @@
 
             // Search Query Filter
             if (query) {
-                filtered = filtered.filter(p => 
-                    p.title.toLowerCase().includes(query) || 
+                filtered = filtered.filter(p =>
+                    p.title.toLowerCase().includes(query) ||
                     p.slug.toLowerCase().includes(query) ||
                     (p.space && p.space.toLowerCase().includes(query)) ||
                     (p.description && p.description.toLowerCase().includes(query)) ||
@@ -1954,7 +2085,7 @@
             }
 
             const visibleCount = filtered.length;
-            const totalCount = allProjects.length;
+            const totalCount = getDisplayProjects().length;
             liveProjectsBadge.textContent = `${visibleCount}/${totalCount} live`;
 
             if (filtered.length === 0) {
@@ -1970,23 +2101,33 @@
                 return;
             }
 
+            const isAdminUser = currentUser && currentUser.email.toLowerCase() === ADMIN_EMAIL;
+
             // 1. Render Table View (Matching Screenshot)
             projectsTableBody.innerHTML = filtered.map(proj => {
                 const fullUrl = window.location.origin + proj.url;
                 const author = proj.author || { name: 'Anonymous', email: '' };
                 const isOwner = currentUser && author.email && currentUser.email.toLowerCase() === author.email.toLowerCase();
+                const canManage = isOwner || !author.email || isAdminUser;
                 const displayDate = formatDateShort(proj.updatedAt || proj.createdAt);
                 const views = proj.viewsCount || 0;
                 const displaySpace = proj.space || 'General';
                 const vis = visibilityInfo(proj.visibility);
 
                 return `
-                    <tr>
+                    <tr${proj.archived ? ' style="opacity: 0.5;"' : ''}>
                         <td>
-                            <span class="status-pill" style="background:${vis.bg}; border-color:${vis.border}; color:${vis.color};">
-                                <span class="status-dot-small" style="background-color:${vis.color};"></span>
-                                <span>${vis.icon} ${vis.label}</span>
-                            </span>
+                            ${proj.archived ? `
+                                <span class="status-pill" style="background:rgba(148,163,184,0.15); border-color:rgba(148,163,184,0.3); color:#94a3b8;">
+                                    <span class="status-dot-small" style="background-color:#94a3b8;"></span>
+                                    <span>📦 Archived</span>
+                                </span>
+                            ` : `
+                                <span class="status-pill" style="background:${vis.bg}; border-color:${vis.border}; color:${vis.color};">
+                                    <span class="status-dot-small" style="background-color:${vis.color};"></span>
+                                    <span>${vis.icon} ${vis.label}</span>
+                                </span>
+                            `}
                         </td>
                         <td>
                             <div class="table-project-cell">
@@ -2020,24 +2161,27 @@
                                 <button onclick="openUpdateModal('${proj.slug}')" class="btn-table-action" title="Update Project Files or Info">
                                     <span>✏️ Update</span>
                                 </button>
-                                <button onclick="openQrModal('${escapeHtml(proj.title)}', '${fullUrl}')" class="btn-table-action btn-table-icon" title="Show QR Code">
-                                    <span>🔲</span>
-                                </button>
                                 <a href="${proj.url}" target="_blank" class="btn-table-action btn-table-icon" title="Open Link">
                                     <span>🔗</span>
                                 </a>
-                                <button onclick="openPreviewModal('${escapeHtml(proj.title)}', '${proj.url}')" class="btn-table-action btn-table-icon" title="Live Preview">
-                                    <span>👁️</span>
-                                </button>
-                                ${isOwner || !author.email ? `
-                                    <button onclick="deleteProject('${proj.slug}', '${author.email}')" class="btn-table-action btn-table-icon" style="color: #fca5a5;" title="Delete Project">
-                                        <span>🗑️</span>
+                                <div class="action-dropdown-wrapper">
+                                    <button onclick="toggleActionMenu('${proj.slug}', event)" class="btn-table-action btn-table-icon" title="More actions">
+                                        <span>⋮</span>
                                     </button>
-                                ` : `
-                                    <button disabled class="btn-table-action btn-table-icon" style="opacity: 0.3;" title="Only creator (${escapeHtml(author.email)}) can delete">
-                                        <span>🔒</span>
-                                    </button>
-                                `}
+                                    <div class="action-dropdown-menu" id="action-menu-${proj.slug}" data-slug="${proj.slug}">
+                                        <div class="action-dropdown-item" onclick="copyToClipboard('${fullUrl}')">📋 Copy Link</div>
+                                        <div class="action-dropdown-item" onclick="shareProject('${escapeHtml(proj.title)}', '${fullUrl}')">📤 Share</div>
+                                        <div class="action-dropdown-item" onclick="openQrModal('${escapeHtml(proj.title)}', '${fullUrl}')">🔲 QR Code</div>
+                                        <div class="action-dropdown-item" onclick="openEmbedModal('${escapeHtml(proj.title)}', '${fullUrl}')">🧩 Embed Code</div>
+                                        <div class="action-dropdown-item" onclick="openPreviewModal('${escapeHtml(proj.title)}', '${proj.url}')">👁️ Live Preview</div>
+                                        <div class="action-dropdown-item" onclick="downloadProject('${proj.slug}')">⬇️ Download .zip</div>
+                                        ${canManage ? `
+                                            <div class="action-dropdown-divider"></div>
+                                            <div class="action-dropdown-item" onclick="toggleArchive('${proj.slug}', ${!!proj.archived})">${proj.archived ? '♻️ Restore' : '📦 Archive'}</div>
+                                            <div class="action-dropdown-item danger" onclick="deleteProject('${proj.slug}', '${author.email}')">🗑️ Delete</div>
+                                        ` : ''}
+                                    </div>
+                                </div>
                             </div>
                         </td>
                     </tr>
@@ -2054,13 +2198,15 @@
                 const isOwner = currentUser && author.email && currentUser.email.toLowerCase() === author.email.toLowerCase();
                 const vis = visibilityInfo(proj.visibility);
 
+                const canManage = isOwner || !author.email || isAdminUser;
+
                 return `
-                    <div class="project-card">
+                    <div class="project-card"${proj.archived ? ' style="opacity: 0.5;"' : ''}>
                         <div>
                             <div class="project-header">
                                 <div class="project-title">${escapeHtml(proj.title)}</div>
                                 <div style="display:flex; gap:6px; flex-shrink:0;">
-                                    <span class="badge-type" style="background:${vis.bg}; border-color:${vis.border}; color:${vis.color};">${vis.icon} ${vis.label}</span>
+                                    ${proj.archived ? `<span class="badge-type" style="background:rgba(148,163,184,0.15); border-color:rgba(148,163,184,0.3); color:#94a3b8;">📦 Archived</span>` : `<span class="badge-type" style="background:${vis.bg}; border-color:${vis.border}; color:${vis.color};">${vis.icon} ${vis.label}</span>`}
                                     <span class="badge-type ${badgeClass}">${proj.fileType}</span>
                                 </div>
                             </div>
@@ -2086,28 +2232,25 @@
                             <a href="${proj.url}" target="_blank" class="btn-action btn-open">
                                 🔗 Open
                             </a>
-                            <button onclick="copyToClipboard('${fullUrl}')" class="btn-action">
-                                📋 Copy
-                            </button>
-                            <button onclick="openQrModal('${escapeHtml(proj.title)}', '${fullUrl}')" class="btn-action">
-                                🔲 QR
-                            </button>
-                            <button onclick="openPreviewModal('${escapeHtml(proj.title)}', '${proj.url}')" class="btn-action">
-                                👁️
-                            </button>
                             <button onclick="openUpdateModal('${proj.slug}')" class="btn-action" title="Update Project">
                                 ✏️
                             </button>
-                            
-                            ${isOwner || !author.email ? `
-                                <button onclick="deleteProject('${proj.slug}', '${author.email}')" class="btn-action btn-delete" title="Delete Project (Author Only)">
-                                    🗑️
-                                </button>
-                            ` : `
-                                <button disabled class="btn-action btn-delete" title="Only creator (${escapeHtml(author.email)}) can delete">
-                                    🔒
-                                </button>
-                            `}
+                            <div class="action-dropdown-wrapper">
+                                <button onclick="toggleActionMenu('grid-${proj.slug}', event)" class="btn-action" title="More actions">⋮</button>
+                                <div class="action-dropdown-menu" id="action-menu-grid-${proj.slug}" data-slug="grid-${proj.slug}">
+                                    <div class="action-dropdown-item" onclick="copyToClipboard('${fullUrl}')">📋 Copy Link</div>
+                                    <div class="action-dropdown-item" onclick="shareProject('${escapeHtml(proj.title)}', '${fullUrl}')">📤 Share</div>
+                                    <div class="action-dropdown-item" onclick="openQrModal('${escapeHtml(proj.title)}', '${fullUrl}')">🔲 QR Code</div>
+                                    <div class="action-dropdown-item" onclick="openEmbedModal('${escapeHtml(proj.title)}', '${fullUrl}')">🧩 Embed Code</div>
+                                    <div class="action-dropdown-item" onclick="openPreviewModal('${escapeHtml(proj.title)}', '${proj.url}')">👁️ Live Preview</div>
+                                    <div class="action-dropdown-item" onclick="downloadProject('${proj.slug}')">⬇️ Download .zip</div>
+                                    ${canManage ? `
+                                        <div class="action-dropdown-divider"></div>
+                                        <div class="action-dropdown-item" onclick="toggleArchive('${proj.slug}', ${!!proj.archived})">${proj.archived ? '♻️ Restore' : '📦 Archive'}</div>
+                                        <div class="action-dropdown-item danger" onclick="deleteProject('${proj.slug}', '${author.email}')">🗑️ Delete</div>
+                                    ` : ''}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -2272,6 +2415,106 @@
 
         function copyQrUrl() {
             if (currentQrUrl) copyToClipboard(currentQrUrl);
+        }
+
+        // Actions Dropdown ("More" menu per project)
+        function toggleActionMenu(slug, event) {
+            event.stopPropagation();
+            document.querySelectorAll('.action-dropdown-menu').forEach(el => {
+                if (el.dataset.slug !== slug) el.classList.remove('open');
+            });
+            const menu = document.getElementById(`action-menu-${slug}`);
+            if (menu) menu.classList.toggle('open');
+        }
+
+        function closeAllActionMenus() {
+            document.querySelectorAll('.action-dropdown-menu').forEach(el => el.classList.remove('open'));
+        }
+
+        document.addEventListener('click', closeAllActionMenus);
+
+        // Share (native share sheet on supported devices, falls back to copy)
+        async function shareProject(title, url) {
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title, url });
+                    return;
+                } catch (e) {
+                    return; // user cancelled the native share sheet
+                }
+            }
+            copyToClipboard(url);
+        }
+
+        // Embed Code Modal
+        let currentEmbedCode = '';
+        function openEmbedModal(title, url) {
+            currentEmbedCode = `<iframe src="${url}" width="100%" height="600" style="border:0;" loading="lazy" title="${title.replace(/"/g, '&quot;')}"></iframe>`;
+            document.getElementById('embed-modal-title').textContent = title;
+            document.getElementById('embed-modal-code').value = currentEmbedCode;
+            document.getElementById('embed-modal').classList.add('active');
+        }
+
+        function closeEmbedModal() {
+            document.getElementById('embed-modal').classList.remove('active');
+        }
+
+        function copyEmbedCode() {
+            if (currentEmbedCode) copyToClipboard(currentEmbedCode);
+        }
+
+        // Download project files as a .zip
+        async function downloadProject(slug) {
+            try {
+                const headers = currentUser ? { 'Authorization': `Bearer ${currentUser.idToken}` } : {};
+                const res = await fetch(`/api/projects/${slug}/download`, { headers });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    showToast(data.message || 'Download failed', 'error');
+                    return;
+                }
+                const blob = await res.blob();
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${slug}.zip`;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(link.href);
+            } catch (e) {
+                showToast('Download failed', 'error');
+            }
+        }
+
+        // Archive / Restore a project
+        async function toggleArchive(slug, currentlyArchived) {
+            if (!currentUser) {
+                showToast('Please sign in first', 'error');
+                promptGoogleLogin();
+                return;
+            }
+            try {
+                const res = await fetch(`/api/projects/${slug}/archive`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${currentUser.idToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ archived: !currentlyArchived })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadProjects();
+                } else if (res.status === 401) {
+                    showToast('Your session expired. Please sign in again.', 'error');
+                    logout();
+                } else {
+                    showToast(data.message || 'Failed to update archive state', 'error');
+                }
+            } catch (e) {
+                showToast('Failed to update archive state', 'error');
+            }
         }
 
         // AI Modal Handler

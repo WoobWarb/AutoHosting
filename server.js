@@ -418,10 +418,14 @@ app.get('/api/projects', softAuth, (req, res) => {
         }
 
         const author = metadata.author || { name: 'Anonymous', email: '', picture: '' };
+        const archived = !!metadata.archived;
 
-        // Real totals always reflect every project, regardless of who's asking
-        totalSizeBytes += stats.totalSize;
-        authorSet.add(author.email || author.name || 'Anonymous');
+        // "Active" totals exclude archived projects, but still reflect every owner's
+        // project regardless of visibility — always the true count, not a filtered one
+        if (!archived) {
+          totalSizeBytes += stats.totalSize;
+          authorSet.add(author.email || author.name || 'Anonymous');
+        }
 
         allProjects.push({
           slug,
@@ -430,6 +434,7 @@ app.get('/api/projects', softAuth, (req, res) => {
           author,
           space: metadata.space || 'General',
           visibility: metadata.visibility || 'public',
+          archived,
           viewsCount: metadata.viewsCount || 0,
           url: `/${slug}/${hasIndexHtml ? '' : mainFile}`,
           directUrl: `/${slug}`,
@@ -444,10 +449,13 @@ app.get('/api/projects', softAuth, (req, res) => {
       }
     }
 
-    // Private/self projects are hidden from everyone except their owner and admins
+    // Private/self projects are hidden from everyone except their owner and admins.
+    // Archived projects are hidden from everyone except their owner and admins too
+    // (who still see them, so they can restore them from an "Archived" view).
     const visibleProjects = allProjects.filter(p => {
-      if (p.visibility === 'public') return true;
       const isOwner = requesterEmail && p.author.email && p.author.email.toLowerCase() === requesterEmail;
+      if (p.archived) return isOwner || requesterIsAdmin;
+      if (p.visibility === 'public') return true;
       return isOwner || requesterIsAdmin;
     });
 
@@ -458,7 +466,7 @@ app.get('/api/projects', softAuth, (req, res) => {
       success: true,
       projects: visibleProjects,
       stats: {
-        totalProjects: allProjects.length,
+        totalProjects: allProjects.filter(p => !p.archived).length,
         totalSizeBytes,
         totalAuthors: authorSet.size
       }
@@ -608,6 +616,7 @@ app.post('/api/upload', requireAuth, upload.single('file'), (req, res) => {
       description: finalDescription || 'No description provided.',
       space: space || 'General',
       visibility,
+      archived: false,
       viewsCount: 0,
       author: {
         name: author.name || 'Anonymous',
@@ -828,6 +837,76 @@ app.delete('/api/projects/:slug', requireAuth, (req, res) => {
   }
 });
 
+// API: Archive / Unarchive a project (Author or admin only) — takes it offline without deleting it
+app.post('/api/projects/:slug/archive', requireAuth, (req, res) => {
+  try {
+    const safeSlug = path.basename(req.params.slug);
+    const targetPath = path.join(PROJECTS_DIR, safeSlug);
+    const metaPath = path.join(targetPath, '.metadata.json');
+
+    if (!fs.existsSync(targetPath)) {
+      return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+
+    let metadata = {};
+    if (fs.existsSync(metaPath)) {
+      try { metadata = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch (e) {}
+    }
+
+    const reqUserEmail = req.authUser.email;
+    const projectAuthorEmail = (metadata.author && metadata.author.email) ? metadata.author.email : '';
+    if (projectAuthorEmail && projectAuthorEmail.toLowerCase() !== reqUserEmail.toLowerCase() && !isAdmin(reqUserEmail)) {
+      return res.status(403).json({ success: false, message: `Permission denied: Only ${projectAuthorEmail} can archive this project.` });
+    }
+
+    metadata.archived = req.body && req.body.archived === false ? false : !metadata.archived;
+    metadata.updatedAt = new Date().toISOString();
+    fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2));
+
+    return res.json({ success: true, archived: metadata.archived, message: metadata.archived ? 'Project archived.' : 'Project restored.' });
+  } catch (err) {
+    console.error('Archive Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to update archive state: ' + err.message });
+  }
+});
+
+// API: Download a project's hosted files as a .zip (respects "self" visibility like the live URL does)
+app.get('/api/projects/:slug/download', softAuth, (req, res) => {
+  try {
+    const safeSlug = path.basename(req.params.slug);
+    const targetPath = path.join(PROJECTS_DIR, safeSlug);
+    const metaPath = path.join(targetPath, '.metadata.json');
+
+    if (!fs.existsSync(targetPath)) {
+      return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+
+    let metadata = {};
+    if (fs.existsSync(metaPath)) {
+      try { metadata = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch (e) {}
+    }
+
+    if ((metadata.visibility || 'public') === 'self') {
+      const requesterEmail = req.authUser ? req.authUser.email.toLowerCase() : null;
+      const ownerEmail = (metadata.author && metadata.author.email) ? metadata.author.email.toLowerCase() : '';
+      if (!requesterEmail || (requesterEmail !== ownerEmail && !isAdmin(requesterEmail))) {
+        return res.status(403).json({ success: false, message: 'You do not have access to download this project.' });
+      }
+    }
+
+    const zip = new AdmZip();
+    zip.addLocalFolder(targetPath);
+    zip.deleteFile('.metadata.json');
+
+    res.set('Content-Type', 'application/zip');
+    res.set('Content-Disposition', `attachment; filename="${safeSlug}.zip"`);
+    return res.send(zip.toBuffer());
+  } catch (err) {
+    console.error('Download Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to build download: ' + err.message });
+  }
+});
+
 // Serve hosted projects at both /projects/<slug> and directly at /<slug>, gated by visibility
 function resolveProjectRequest(reqPath) {
   const strippedPath = reqPath.startsWith('/projects/') ? reqPath.slice('/projects'.length) : reqPath;
@@ -861,6 +940,10 @@ app.use((req, res, next) => {
   let meta = {};
   if (fs.existsSync(metaPath)) {
     try { meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch (e) {}
+  }
+
+  if (meta.archived) {
+    return res.status(410).send('<h1>410 — Project Archived</h1><p>This project has been archived by its owner and is no longer live.</p>');
   }
 
   if ((meta.visibility || 'public') === 'self') {
