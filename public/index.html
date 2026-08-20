@@ -1318,41 +1318,31 @@
                 <h2 style="font-size:1.1rem; font-weight:700; color:#fff; margin:0;">❓ วิธีใช้งาน (How to Use)</h2>
                 <span id="guide-toggle-icon" style="font-size:1.2rem; color:var(--text-muted);">▾</span>
             </div>
-            <div id="guide-content" style="display:none; flex-direction:column; gap:14px;">
-                <div style="display:flex; gap:14px; align-items:flex-start;">
-                    <div style="font-size:1.4rem; line-height:1;">1️⃣</div>
-                    <div>
-                        <strong style="color:#fff;">Sign in with Google</strong>
-                        <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 0;">กดปุ่ม "Sign in with Google" มุมขวาบน เพื่อยืนยันตัวตนก่อนอัปโหลดหรือจัดการโปรเจกต์</p>
-                    </div>
+            <div id="guide-content" style="display:none; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:16px;">
+                <div style="background:rgba(15,23,42,0.6); border:1px solid var(--border-color); border-radius:14px; padding:20px 14px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                    <div style="font-size:2.4rem; line-height:1;">🔑</div>
+                    <strong style="color:#fff; font-size:0.9rem;">1. Sign In</strong>
+                    <p style="color:var(--text-muted); font-size:0.78rem; margin:0;">ล็อกอินด้วย Google</p>
                 </div>
-                <div style="display:flex; gap:14px; align-items:flex-start;">
-                    <div style="font-size:1.4rem; line-height:1;">2️⃣</div>
-                    <div>
-                        <strong style="color:#fff;">เลือกไฟล์</strong>
-                        <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 0;">ลากไฟล์ <code>.html</code> หรือ <code>.zip</code> มาวางในกล่องอัปโหลดด้านล่าง — ถ้าเว็บมีรูป/CSS/JS แยกไฟล์ ต้อง <strong>zip รวมทุกไฟล์เข้าด้วยกันก่อน</strong> ไม่งั้นรูปจะหายตอนขึ้นเว็บจริง</p>
-                    </div>
+                <div style="background:rgba(15,23,42,0.6); border:1px solid var(--border-color); border-radius:14px; padding:20px 14px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                    <div style="font-size:2.4rem; line-height:1;">📁</div>
+                    <strong style="color:#fff; font-size:0.9rem;">2. เลือกไฟล์</strong>
+                    <p style="color:var(--text-muted); font-size:0.78rem; margin:0;">ลาก .html หรือ .zip มาวาง</p>
                 </div>
-                <div style="display:flex; gap:14px; align-items:flex-start;">
-                    <div style="font-size:1.4rem; line-height:1;">3️⃣</div>
-                    <div>
-                        <strong style="color:#fff;">ตั้งค่าโปรเจกต์</strong>
-                        <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 0;">กรอกชื่อ URL (Slug), ชื่อโครงการ, หมวดหมู่ (Space) และเลือก Visibility — 🌐 Public ให้ทุกคนเห็น, 🔗 Private ไม่โชว์ในรายการแต่ส่งลิงก์ให้คนอื่นดูได้, 🔒 Self เห็นคนเดียว</p>
-                    </div>
+                <div style="background:rgba(15,23,42,0.6); border:1px solid var(--border-color); border-radius:14px; padding:20px 14px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                    <div style="font-size:2.4rem; line-height:1;">⚙️</div>
+                    <strong style="color:#fff; font-size:0.9rem;">3. ตั้งค่า</strong>
+                    <p style="color:var(--text-muted); font-size:0.78rem; margin:0;">ชื่อ, หมวดหมู่, Visibility</p>
                 </div>
-                <div style="display:flex; gap:14px; align-items:flex-start;">
-                    <div style="font-size:1.4rem; line-height:1;">4️⃣</div>
-                    <div>
-                        <strong style="color:#fff;">กด "Deploy Project"</strong>
-                        <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 0;">เว็บจะขึ้นออนไลน์ทันทีที่ <code>html.nctprosperatech.com/ชื่อโปรเจกต์</code></p>
-                    </div>
+                <div style="background:rgba(15,23,42,0.6); border:1px solid var(--border-color); border-radius:14px; padding:20px 14px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                    <div style="font-size:2.4rem; line-height:1;">🚀</div>
+                    <strong style="color:#fff; font-size:0.9rem;">4. Deploy</strong>
+                    <p style="color:var(--text-muted); font-size:0.78rem; margin:0;">เว็บขึ้นออนไลน์ทันที</p>
                 </div>
-                <div style="display:flex; gap:14px; align-items:flex-start;">
-                    <div style="font-size:1.4rem; line-height:1;">5️⃣</div>
-                    <div>
-                        <strong style="color:#fff;">จัดการโปรเจกต์ทีหลัง</strong>
-                        <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 0;">กด <strong>✏️ Update</strong> เพื่อแก้ไฟล์/ชื่อ/Visibility หรือกด <strong>⋮</strong> เพื่อ Copy Link, Share, QR Code, Embed Code, Download .zip, Archive หรือ Delete</p>
-                    </div>
+                <div style="background:rgba(15,23,42,0.6); border:1px solid var(--border-color); border-radius:14px; padding:20px 14px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                    <div style="font-size:2.4rem; line-height:1;">🛠️</div>
+                    <strong style="color:#fff; font-size:0.9rem;">5. จัดการ</strong>
+                    <p style="color:var(--text-muted); font-size:0.78rem; margin:0;">Update / ⋮ Copy, Share, QR, Embed, Download, Archive, Delete</p>
                 </div>
             </div>
         </div>
@@ -1710,8 +1700,8 @@
         function toggleGuide() {
             const content = document.getElementById('guide-content');
             const icon = document.getElementById('guide-toggle-icon');
-            const isOpen = content.style.display === 'flex';
-            content.style.display = isOpen ? 'none' : 'flex';
+            const isOpen = content.style.display === 'grid';
+            content.style.display = isOpen ? 'none' : 'grid';
             icon.textContent = isOpen ? '▾' : '▴';
         }
 
