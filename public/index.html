@@ -1913,6 +1913,45 @@
             updateDeployButtonState();
         }
 
+        // Draft persistence — survives a page reload (e.g. if the browser does a full
+        // redirect during Google sign-in) so typed details aren't lost. The selected FILE
+        // itself can't be restored this way; browsers never let JS re-attach a File object
+        // after a real navigation, for security reasons — that part has to be reselected.
+        const DRAFT_KEY = 'nct_upload_draft';
+
+        function saveDraftForm() {
+            sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
+                slug: slugInput.value,
+                title: titleInput.value,
+                description: descInput.value,
+                space: spaceSelectInput.value,
+                visibility: visibilitySelectInput.value
+            }));
+        }
+
+        function restoreDraftForm() {
+            const raw = sessionStorage.getItem(DRAFT_KEY);
+            if (!raw) return;
+            try {
+                const draft = JSON.parse(raw);
+                if (draft.slug) slugInput.value = draft.slug;
+                if (draft.title) titleInput.value = draft.title;
+                if (draft.description) descInput.value = draft.description;
+                if (draft.space) spaceSelectInput.value = draft.space;
+                if (draft.visibility) visibilitySelectInput.value = draft.visibility;
+                if ((draft.slug || draft.title || draft.description) && !selectedFile) {
+                    showToast('กู้คืนรายละเอียดที่กรอกไว้แล้ว — กรุณาเลือกไฟล์อีกครั้งเพื่อ Deploy', 'success');
+                }
+            } catch (e) {}
+        }
+
+        function clearDraftForm() {
+            sessionStorage.removeItem(DRAFT_KEY);
+        }
+
+        [slugInput, titleInput, descInput].forEach(el => el.addEventListener('input', saveDraftForm));
+        [spaceSelectInput, visibilitySelectInput].forEach(el => el.addEventListener('change', saveDraftForm));
+
         function updateDeployButtonState() {
             btnDeploy.disabled = !selectedFile || !currentUser;
             if (!currentUser) {
@@ -1958,6 +1997,7 @@
                     titleInput.value = '';
                     descInput.value = '';
                     selectedFileBadge.style.display = 'none';
+                    clearDraftForm();
                     loadProjects();
                     loadSpaces();
                 } else if (res.status === 401) {
@@ -2694,7 +2734,7 @@
 
         // Init
         initAuth();
-        loadSpaces();
+        loadSpaces().then(restoreDraftForm);
         loadProjects();
     </script>
 </body>
