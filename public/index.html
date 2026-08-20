@@ -1201,6 +1201,18 @@
             .form-grid { grid-template-columns: 1fr; }
             .text-input.has-prefix { padding-left: 14px; }
             .slug-prefix { display: none; }
+
+            .search-bar { flex-wrap: wrap; }
+            .search-bar .search-input { flex-basis: 100%; }
+
+            .header-action-buttons { width: 100%; flex-wrap: wrap; }
+            .btn-ai-create, .btn-upload-pill { flex: 1; justify-content: center; white-space: nowrap; }
+
+            .project-actions { flex-wrap: wrap; }
+            .table-actions { flex-wrap: wrap; justify-content: flex-end; }
+            .project-header { flex-direction: column; align-items: flex-start !important; gap: 8px; }
+
+            #guide-content { grid-template-columns: repeat(2, 1fr) !important; }
         }
 
         /* Footer */
@@ -1661,7 +1673,7 @@
         let allProjects = [];
         let allSpaces = [{ name: 'General', count: 0 }];
         let activeSpace = 'All';
-        let currentViewMode = 'table'; // 'table' or 'grid'
+        let currentViewMode = window.innerWidth <= 768 ? 'grid' : 'table'; // table is too cramped on mobile
         let currentQrUrl = '';
         let updatingSlug = '';
 
@@ -2731,6 +2743,7 @@
         }
 
         // Init
+        setViewMode(currentViewMode);
         initAuth();
         loadSpaces().then(restoreDraftForm);
         loadProjects();
