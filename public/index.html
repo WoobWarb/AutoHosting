@@ -165,6 +165,20 @@
             color: #fff;
         }
 
+        .btn-edit-name {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.78rem;
+            opacity: 0.6;
+            padding: 2px;
+            line-height: 1;
+        }
+
+        .btn-edit-name:hover {
+            opacity: 1;
+        }
+
         .btn-logout {
             background: rgba(239, 68, 68, 0.15);
             border: 1px solid rgba(239, 68, 68, 0.3);
@@ -1574,6 +1588,22 @@
         </div>
     </div>
 
+    <!-- Edit Display Name Modal -->
+    <div class="modal-overlay" id="edit-name-modal">
+        <div class="dialog-card" style="max-width: 400px;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; color: #fff;">✏️ Change Display Name</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted)">ชื่อนี้จะแสดงเป็นเจ้าของ (Owner) บนโปรเจกต์ใหม่ที่คุณอัปโหลดต่อจากนี้ (ไม่กระทบโปรเจกต์เก่า)</p>
+            <div class="input-group">
+                <label>Display Name</label>
+                <input type="text" id="edit-name-input" class="text-input" placeholder="e.g. Somchai Prasert" maxlength="60">
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                <button onclick="closeEditNameModal()" class="btn-action" style="flex: none;">Cancel</button>
+                <button onclick="saveDisplayName()" class="btn-upload" style="width: auto; height: 38px; padding: 0 20px;">Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Delete Confirmation Modal -->
     <div class="modal-overlay" id="delete-confirm-modal">
         <div class="dialog-card" style="max-width: 420px;">
@@ -1827,6 +1857,7 @@
                     <div class="user-profile">
                         <img src="${currentUser.picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name)}" class="user-avatar" alt="Avatar">
                         <span class="user-name">${escapeHtml(currentUser.name)}</span>
+                        <button onclick="openEditNameModal()" class="btn-edit-name" title="Change display name">✏️</button>
                     </div>
                     <button onclick="logout()" class="btn-logout">Sign Out</button>
                 `;
@@ -1861,6 +1892,29 @@
             } else {
                 showToast('Google Sign-In failed to load. Please refresh the page and try again.', 'error');
             }
+        }
+
+        function openEditNameModal() {
+            if (!currentUser) return;
+            document.getElementById('edit-name-input').value = currentUser.name;
+            document.getElementById('edit-name-modal').classList.add('active');
+        }
+
+        function closeEditNameModal() {
+            document.getElementById('edit-name-modal').classList.remove('active');
+        }
+
+        function saveDisplayName() {
+            const name = document.getElementById('edit-name-input').value.trim();
+            if (!name) {
+                showToast('Please enter a name', 'error');
+                return;
+            }
+            currentUser.name = name;
+            localStorage.setItem('nct_user_profile', JSON.stringify(currentUser));
+            closeEditNameModal();
+            renderUserHeader();
+            showToast('Display name updated — new uploads will show this name', 'success');
         }
 
         function logout() {
@@ -1986,6 +2040,7 @@
             formData.append('space', spaceSelectInput.value || 'General');
             formData.append('description', descInput.value.trim());
             formData.append('visibility', visibilitySelectInput.value || 'public');
+            formData.append('displayName', currentUser.name);
 
             btnDeploy.disabled = true;
             btnDeploy.innerHTML = '<span>Deploying...</span> ⏳';

@@ -533,8 +533,11 @@ app.post('/api/upload', requireAuth, upload.single('file'), (req, res) => {
     const VALID_VISIBILITY = ['public', 'private', 'self'];
     const visibility = VALID_VISIBILITY.includes(req.body.visibility) ? req.body.visibility : 'public';
 
-    // Author identity comes only from the server-verified Google token — never from client input
-    const author = req.authUser;
+    // Author identity comes from the server-verified Google token — email/googleId/picture can
+    // never be overridden by the client. The display name is purely cosmetic, so we do let the
+    // user override just that, capped to a sane length.
+    const customDisplayName = (req.body.displayName || '').trim().slice(0, 60);
+    const author = { ...req.authUser, name: customDisplayName || req.authUser.name };
 
     // Enforce Per-User Storage Quota
     const userEmail = author.email.toLowerCase();
