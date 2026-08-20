@@ -1902,13 +1902,11 @@
             selectedFileName.textContent = `${file.name} (${formatBytes(file.size)})`;
             selectedFileBadge.style.display = 'flex';
 
+            // Slug/Title always follow whichever file is currently selected
             const baseName = file.name.substring(0, file.name.lastIndexOf('.'));
-            if (!slugInput.value.trim()) {
-                slugInput.value = baseName.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
-            }
-            if (!titleInput.value.trim()) {
-                titleInput.value = baseName.replace(/[-_]/g, ' ');
-            }
+            slugInput.value = baseName.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+            titleInput.value = baseName.replace(/[-_]/g, ' ');
+            saveDraftForm();
 
             updateDeployButtonState();
         }
