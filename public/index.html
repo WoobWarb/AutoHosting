@@ -1209,6 +1209,70 @@
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
         }
 
+        /* Source Tabs (Upload File / Paste Code) */
+        .source-tabs {
+            display: flex;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 4px;
+        }
+
+        .source-tab {
+            flex: 1;
+            padding: 10px 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .source-tab:hover {
+            color: #fff;
+        }
+
+        .source-tab.active {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(34, 211, 238, 0.25));
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .code-paste-input {
+            width: 100%;
+            min-height: 220px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            color: #e2e8f0;
+            font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            resize: vertical;
+            transition: border-color 0.2s ease;
+        }
+
+        .code-paste-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .deployed-url-box {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            border-radius: 10px;
+            padding: 14px;
+            font-family: monospace;
+            font-size: 0.92rem;
+            color: #6ee7b7;
+            word-break: break-all;
+        }
+
         @media (max-width: 768px) {
             header { padding: 16px; }
             main { padding: 0 16px; margin: 16px auto; }
@@ -1392,6 +1456,12 @@
                 </button>
             </div>
 
+            <!-- Source Tabs: File Upload vs Paste Code -->
+            <div class="source-tabs">
+                <button class="source-tab active" id="tab-file" onclick="switchSourceTab('file')">📁 Upload File</button>
+                <button class="source-tab" id="tab-code" onclick="switchSourceTab('code')">⌨️ Paste Code</button>
+            </div>
+
             <!-- Dropzone -->
             <div class="dropzone" id="dropzone">
                 <div class="dropzone-icon">📁</div>
@@ -1403,6 +1473,12 @@
             <!-- Selected File Badge -->
             <div class="selected-file-badge" id="selected-file-badge">
                 📄 Selected File: <span id="selected-filename">-</span>
+            </div>
+
+            <!-- Paste Code Panel -->
+            <div id="paste-code-panel" style="display: none; flex-direction: column; gap: 10px;">
+                <textarea id="code-input" class="code-paste-input" placeholder="วางโค้ด HTML ของทั้งไฟล์ที่นี่... (รวม &lt;html&gt;, &lt;style&gt;, &lt;script&gt; ได้)" spellcheck="false"></textarea>
+                <div id="code-size-hint" style="font-size: 0.78rem; color: var(--text-muted);"></div>
             </div>
 
             <!-- Upload Form Controls -->
@@ -1650,6 +1726,20 @@
         </div>
     </div>
 
+    <!-- Deployed URL Modal -->
+    <div class="modal-overlay" id="deployed-url-modal">
+        <div class="dialog-card" style="max-width: 460px; text-align: center; align-items: center;">
+            <h3 style="font-size: 1.2rem; font-weight: 700; color: #6ee7b7;">🚀 Deploy เสร็จแล้ว!</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">เว็บของคุณข้ึนออนไลน์แล้ว — นกไปเลย:</p>
+            <div class="deployed-url-box" id="deployed-url-text"></div>
+            <div style="display: flex; gap: 8px; width: 100%;">
+                <button onclick="openQrForLastDeploy()" class="btn-action" style="flex: 1;">📱 QR Code</button>
+                <button onclick="copyDeployedUrl()" class="btn-upload" style="width: auto; height: 38px; padding: 0 20px;">📋 Copy URL</button>
+                <button onclick="closeDeployedUrlModal()" class="btn-action">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- AI Web Creator Modal -->
     <div class="modal-overlay" id="ai-modal">
         <div class="dialog-card" style="max-width: 580px;">
@@ -1706,6 +1796,8 @@
         let currentViewMode = window.innerWidth <= 768 ? 'grid' : 'table'; // table is too cramped on mobile
         let currentQrUrl = '';
         let updatingSlug = '';
+        let activeSourceTab = 'file'; // 'file' | 'code'
+        let lastDeployedUrl = '';
 
         // DOM Elements
         const userAuthBox = document.getElementById('user-auth-box');
@@ -1720,6 +1812,7 @@
         const descInput = document.getElementById('desc-input');
         const spaceSelectInput = document.getElementById('space-select-input');
         const visibilitySelectInput = document.getElementById('visibility-select-input');
+        const codeInput = document.getElementById('code-input');
         const btnDeploy = document.getElementById('btn-deploy');
         
         const spacesTabsContainer = document.getElementById('spaces-tabs');
@@ -1965,6 +2058,7 @@
             }
 
             selectedFile = file;
+            if (activeSourceTab !== 'file') switchSourceTab('file');
             selectedFileName.textContent = `${file.name} (${formatBytes(file.size)})`;
             selectedFileBadge.style.display = 'flex';
 
@@ -2017,7 +2111,8 @@
         [spaceSelectInput, visibilitySelectInput].forEach(el => el.addEventListener('change', saveDraftForm));
 
         function updateDeployButtonState() {
-            btnDeploy.disabled = !selectedFile || !currentUser;
+            const hasSource = activeSourceTab === 'code' ? codeInput.value.trim() : selectedFile;
+            btnDeploy.disabled = !hasSource || !currentUser;
             if (!currentUser) {
                 btnDeploy.innerHTML = '<span>Sign In to Deploy</span> 🔒';
             } else {
@@ -2027,47 +2122,85 @@
 
         // Upload Deploy Handler
         btnDeploy.addEventListener('click', async () => {
-            if (!selectedFile) return;
+            const isPasteMode = activeSourceTab === 'code';
+            const codeContent = isPasteMode ? codeInput.value.trim() : '';
+
+            if (isPasteMode && !codeContent) {
+                showToast('วางโค้ด HTML ก่อนแล้วค่อย Deploy', 'error');
+                return;
+            }
+            if (!isPasteMode && !selectedFile) return;
             if (!currentUser) {
                 promptGoogleLogin();
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-            formData.append('slug', slugInput.value.trim());
-            formData.append('title', titleInput.value.trim());
-            formData.append('space', spaceSelectInput.value || 'General');
-            formData.append('description', descInput.value.trim());
-            formData.append('visibility', visibilitySelectInput.value || 'public');
-            formData.append('displayName', currentUser.name);
-
             btnDeploy.disabled = true;
             btnDeploy.innerHTML = '<span>Deploying...</span> ⏳';
 
             try {
-                const res = await fetch('/api/upload', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${currentUser.idToken}` },
-                    body: formData
-                });
+                let data;
+                if (isPasteMode) {
+                    const res = await fetch('/api/upload-code', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${currentUser.idToken}`
+                        },
+                        body: JSON.stringify({
+                            code: codeContent,
+                            slug: slugInput.value.trim(),
+                            title: titleInput.value.trim(),
+                            space: spaceSelectInput.value || 'General',
+                            description: descInput.value.trim(),
+                            visibility: visibilitySelectInput.value || 'public',
+                            displayName: currentUser.name
+                        })
+                    });
+                    data = await res.json();
+                    if (res.status === 401) {
+                        showToast('Your session expired. Please sign in again.', 'error');
+                        logout();
+                        return;
+                    }
+                } else {
+                    const formData = new FormData();
+                    formData.append('file', selectedFile);
+                    formData.append('slug', slugInput.value.trim());
+                    formData.append('title', titleInput.value.trim());
+                    formData.append('space', spaceSelectInput.value || 'General');
+                    formData.append('description', descInput.value.trim());
+                    formData.append('visibility', visibilitySelectInput.value || 'public');
+                    formData.append('displayName', currentUser.name);
 
-                const data = await res.json();
+                    const res = await fetch('/api/upload', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${currentUser.idToken}` },
+                        body: formData
+                    });
+                    data = await res.json();
+
+                    if (res.status === 401) {
+                        showToast('Your session expired. Please sign in again.', 'error');
+                        logout();
+                        return;
+                    }
+                }
 
                 if (data.success) {
                     showToast(`Project '${data.slug}' deployed successfully!`, 'success');
                     selectedFile = null;
                     fileInput.value = '';
+                    codeInput.value = '';
+                    updateCodeSizeHint();
                     slugInput.value = '';
                     titleInput.value = '';
                     descInput.value = '';
                     selectedFileBadge.style.display = 'none';
                     clearDraftForm();
+                    openDeployedUrlModal(data.url);
                     loadProjects();
                     loadSpaces();
-                } else if (res.status === 401) {
-                    showToast('Your session expired. Please sign in again.', 'error');
-                    logout();
                 } else {
                     showToast(data.message || 'Upload failed', 'error');
                 }
@@ -2078,6 +2211,47 @@
                 updateDeployButtonState();
             }
         });
+
+        // Source tab switching (File Upload vs Paste Code)
+        function switchSourceTab(tab) {
+            activeSourceTab = tab;
+            document.getElementById('tab-file').classList.toggle('active', tab === 'file');
+            document.getElementById('tab-code').classList.toggle('active', tab === 'code');
+            const showCodePanel = tab === 'code';
+            document.getElementById('dropzone').style.display = showCodePanel ? 'none' : '';
+            document.getElementById('selected-file-badge').style.display = showCodePanel ? 'none' : (selectedFile ? 'flex' : 'none');
+            document.getElementById('paste-code-panel').style.display = showCodePanel ? 'flex' : 'none';
+            updateDeployButtonState();
+        }
+
+        function updateCodeSizeHint() {
+            const hint = document.getElementById('code-size-hint');
+            const bytes = new Blob([codeInput.value]).size;
+            hint.textContent = bytes > 0 ? `โค้ดที่วาง: ${formatBytes(bytes)} (Limit 50 MB)` : '';
+        }
+        codeInput.addEventListener('input', updateCodeSizeHint);
+
+        // Deployed URL Modal
+        function openDeployedUrlModal(pathOrUrl) {
+            const fullUrl = pathOrUrl.startsWith('http') ? pathOrUrl : location.origin + pathOrUrl;
+            lastDeployedUrl = fullUrl;
+            document.getElementById('deployed-url-text').textContent = fullUrl;
+            document.getElementById('deployed-url-modal').classList.add('active');
+        }
+
+        function closeDeployedUrlModal() {
+            document.getElementById('deployed-url-modal').classList.remove('active');
+        }
+
+        function copyDeployedUrl() {
+            if (lastDeployedUrl) copyToClipboard(lastDeployedUrl);
+        }
+
+        function openQrForLastDeploy() {
+            if (!lastDeployedUrl) return;
+            document.getElementById('deployed-url-modal').classList.remove('active');
+            openQrModal('Last Deploy', lastDeployedUrl);
+        }
 
         // Load Spaces
         async function loadSpaces() {

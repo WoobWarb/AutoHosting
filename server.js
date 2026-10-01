@@ -659,6 +659,109 @@ app.post('/api/upload', requireAuth, upload.single('file'), (req, res) => {
   }
 });
 
+// API: Deploy from pasted HTML code — same pipeline as file upload (slug, visibility,
+// quota, metadata, auto-description) but the source is raw code instead of a file
+app.post('/api/upload-code', requireAuth, (req, res) => {
+  try {
+    const htmlContent = req.body && req.body.code ? String(req.body.code) : '';
+    if (!htmlContent.trim()) {
+      return res.status(400).json({ success: false, message: 'No HTML code provided.' });
+    }
+
+    // Same 50MB size ceiling as file uploads
+    const codeBytes = Buffer.byteLength(htmlContent, 'utf8');
+    if (codeBytes > MAX_FILE_SIZE_BYTES) {
+      return res.status(400).json({
+        success: false,
+        message: `HTML code exceeds the 50 MB size limit. Your code size: ${(codeBytes / (1024 * 1024)).toFixed(1)} MB.`
+      });
+    }
+
+    const rawCustomSlug = req.body.slug;
+    const rawCustomTitle = req.body.title;
+    const description = (req.body.description || '').trim();
+    const space = (req.body.space || 'General').trim();
+    const VALID_VISIBILITY = ['public', 'private', 'self'];
+    const visibility = VALID_VISIBILITY.includes(req.body.visibility) ? req.body.visibility : 'public';
+
+    // Author identity comes from the server-verified Google token — display name is the
+    // only client-supplied field, capped to a sane length (same as file uploads)
+    const customDisplayName = (req.body.displayName || '').trim().slice(0, 60);
+    const author = { ...req.authUser, name: customDisplayName || req.authUser.name };
+
+    // Enforce Per-User Storage Quota (same limits as file uploads)
+    const userEmail = author.email.toLowerCase();
+    const isNctTeam = userEmail.endsWith('@nctprosperatech.com');
+    const userQuotaBytes = isNctTeam ? QUOTA_NCT_TEAM_BYTES : QUOTA_PUBLIC_USER_BYTES;
+    const currentUsedBytes = getUserTotalStorageBytes(userEmail);
+
+    if (currentUsedBytes + codeBytes > userQuotaBytes) {
+      const usedMb = (currentUsedBytes / (1024 * 1024)).toFixed(1);
+      const limitMb = (userQuotaBytes / (1024 * 1024)).toFixed(0);
+      return res.status(400).json({
+        success: false,
+        message: `Storage quota limit reached (${usedMb} MB / ${limitMb} MB limit). Please delete old projects to free up disk space.`
+      });
+    }
+
+    const baseSlug = cleanSlug(rawCustomSlug || 'pasted-page');
+    const targetSlug = getUniqueSlug(baseSlug);
+    const targetPath = path.join(PROJECTS_DIR, targetSlug);
+    fs.mkdirSync(targetPath, { recursive: true });
+
+    // Save the pasted code as index.html so /<slug> works seamlessly
+    fs.writeFileSync(path.join(targetPath, 'index.html'), htmlContent, 'utf8');
+
+    // If no description was typed, try to pull a short summary from the page itself
+    let finalDescription = description;
+    if (!finalDescription) {
+      finalDescription = extractAutoDescription(htmlContent);
+    }
+
+    const stats = getFolderStats(targetPath);
+    const metadata = {
+      slug: targetSlug,
+      title: rawCustomTitle ? rawCustomTitle.trim() : (rawCustomSlug ? rawCustomSlug.trim() : targetSlug),
+      description: finalDescription || 'No description provided.',
+      space: space || 'General',
+      visibility,
+      archived: false,
+      viewsCount: 0,
+      author: {
+        name: author.name || 'Anonymous',
+        email: author.email || '',
+        picture: author.picture || '',
+        googleId: author.googleId || ''
+      },
+      originalFileName: '(pasted code)',
+      fileType: 'html',
+      source: 'pasted',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      sizeBytes: stats.totalSize,
+      fileCount: stats.fileCount
+    };
+
+    fs.writeFileSync(path.join(targetPath, '.metadata.json'), JSON.stringify(metadata, null, 2));
+
+    const projectUrl = `/${targetSlug}/`;
+
+    return res.json({
+      success: true,
+      message: 'Project deployed from pasted code!',
+      slug: targetSlug,
+      url: projectUrl,
+      project: {
+        ...metadata,
+        url: projectUrl
+      }
+    });
+  } catch (err) {
+    console.error('Paste-Deploy Error:', err);
+    return res.status(500).json({ success: false, message: 'Deploy from code failed: ' + err.message });
+  }
+});
+
 // API: Re-upload / Update Project Files or Metadata
 app.post('/api/projects/:slug/update', requireAuth, upload.single('file'), (req, res) => {
   const tempFilePath = req.file ? req.file.path : null;
