@@ -1703,6 +1703,30 @@
         </div>
     </div>
 
+    <!-- Version History / Rollback Modal -->
+    <div class="modal-overlay" id="history-modal">
+        <div class="dialog-card" style="max-width: 560px;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; color: #fff;">⏱️ Version History — <span id="history-slug" style="color: var(--accent-cyan);"></span></h3>
+            <p style="font-size: 0.82rem; color: var(--text-muted)">Previous saved versions of this project. Roll back to restore one — the current version is kept in the history first, so it's always undoable.</p>
+            <div id="history-list" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px;"></div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                <button onclick="closeHistoryModal()" class="btn-action" style="flex: none;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rollback Confirmation Modal -->
+    <div class="modal-overlay" id="rollback-confirm-modal">
+        <div class="dialog-card" style="max-width: 420px;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; color: #fcd34d;">⏪ Roll Back Version</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted)">Restore <strong id="rollback-version-label" style="color: #fff;"></strong> as the live version? The current version will be saved to history so you can undo this later.</p>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                <button onclick="closeRollbackConfirm()" class="btn-action" style="flex: none;">Cancel</button>
+                <button id="btn-confirm-rollback" onclick="executeRollback()" class="btn-upload" style="width: auto; height: 38px; padding: 0 20px; background: #d97706;">Roll Back</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Embed Code Modal -->
     <div class="modal-overlay" id="embed-modal">
         <div class="dialog-card" style="max-width: 520px;">
@@ -2452,7 +2476,8 @@
                                         <div class="action-dropdown-item" onclick="openEmbedModal('${escapeHtml(proj.title)}', '${fullUrl}')">🧩 Embed Code</div>
                                         <div class="action-dropdown-item" onclick="openPreviewModal('${escapeHtml(proj.title)}', '${proj.url}')">👁️ Live Preview</div>
                                         <div class="action-dropdown-item" onclick="downloadProject('${proj.slug}')">⬇️ Download .zip</div>
-                                        ${canManage ? `
+                                        ${canManage ? `<
+                                            <div class="action-dropdown-item" onclick="openHistoryModal('${proj.slug}')">⏱️ History &amp; Rollback</div>
                                             <div class="action-dropdown-divider"></div>
                                             <div class="action-dropdown-item" onclick="toggleArchive('${proj.slug}', ${!!proj.archived})">${proj.archived ? '♻️ Restore' : '📦 Archive'}</div>
                                             <div class="action-dropdown-item danger" onclick="deleteProject('${proj.slug}', '${author.email}')">🗑️ Delete</div>
@@ -2522,6 +2547,7 @@
                                     <div class="action-dropdown-item" onclick="openPreviewModal('${escapeHtml(proj.title)}', '${proj.url}')">👁️ Live Preview</div>
                                     <div class="action-dropdown-item" onclick="downloadProject('${proj.slug}')">⬇️ Download .zip</div>
                                     ${canManage ? `
+                                        <div class="action-dropdown-item" onclick="openHistoryModal('${proj.slug}')">⏱️ History &amp; Rollback</div>
                                         <div class="action-dropdown-divider"></div>
                                         <div class="action-dropdown-item" onclick="toggleArchive('${proj.slug}', ${!!proj.archived})">${proj.archived ? '♻️ Restore' : '📦 Archive'}</div>
                                         <div class="action-dropdown-item danger" onclick="deleteProject('${proj.slug}', '${author.email}')">🗑️ Delete</div>
@@ -2774,6 +2800,101 @@
                 URL.revokeObjectURL(link.href);
             } catch (e) {
                 showToast('Download failed', 'error');
+            }
+        }
+
+        // ---- Version History & Rollback ----
+        let historySlug = '';
+        let pendingRollbackVersionId = '';
+
+        async function openHistoryModal(slug) {
+            if (!currentUser) {
+                showToast('Please sign in first', 'error');
+                promptGoogleLogin();
+                return;
+            }
+            historySlug = slug;
+            document.getElementById('history-slug').textContent = slug;
+            const list = document.getElementById('history-list');
+            list.innerHTML = '<div style="text-align:center; color: var(--text-muted); font-size: 0.85rem; padding: 12px;">Loading…</div>';
+            document.getElementById('history-modal').classList.add('active');
+            try {
+                const res = await fetch(`/api/projects/${slug}/history`, {
+                    headers: { 'Authorization': `Bearer ${currentUser.idToken}` }
+                });
+                const data = await res.json();
+                const versions = (data.versions || []);
+                if (versions.length === 0) {
+                    list.innerHTML = '<div style="text-align:center; color: var(--text-muted); font-size: 0.85rem; padding: 12px;">No previous versions yet. A version is saved automatically each time you update this project (file upload or pasted code).</div>';
+                    return;
+                }
+                list.innerHTML = versions.map((v, idx) => {
+                    const niceDate = formatTimeAgo(v.created);
+                    return `
+                        <div style="display:flex; align-items:center; gap:10px; background: rgba(15,23,42,0.5); border:1px solid var(--border-color); border-radius:8px; padding:10px;">
+                            <div style="flex:1; min-width:0;">
+                                <div style="font-weight:600; color:#fff; font-size:0.85rem;">Version ${versions.length - idx} ${idx===0 ? '(newest saved)' : ''}</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted);">${niceDate} · ${formatBytes(v.sizeBytes)} · ${v.fileCount} file(s)</div>
+                            </div>
+                            <a href="/api/projects/${slug}/history/${v.id}/download" target="_blank" class="btn-action" style="flex:none; font-size:0.75rem; padding:6px 10px;" title="Download this version as .zip">⬇️</a>
+                            <button onclick="askRollback('${v.id}', '${niceDate}')" class="btn-upload" style="flex:none; font-size:0.75rem; height:32px; padding:0 12px; background:#d97706;">⏪ Roll Back</button>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                list.innerHTML = '<div style="text-align:center; color:#f87171; font-size:0.85rem; padding:12px;">Failed to load version history.</div>';
+            }
+        }
+
+        function closeHistoryModal() {
+            document.getElementById('history-modal').classList.remove('active');
+            historySlug = '';
+        }
+
+        function askRollback(versionId, label) {
+            pendingRollbackVersionId = versionId;
+            document.getElementById('rollback-version-label').textContent = label;
+            document.getElementById('rollback-confirm-modal').classList.add('active');
+        }
+
+        function closeRollbackConfirm() {
+            document.getElementById('rollback-confirm-modal').classList.remove('active');
+            pendingRollbackVersionId = '';
+        }
+
+        async function executeRollback() {
+            if (!historySlug || !pendingRollbackVersionId) return;
+            if (!currentUser) {
+                showToast('Please sign in first', 'error');
+                promptGoogleLogin();
+                return;
+            }
+            const btn = document.getElementById('btn-confirm-rollback');
+            btn.disabled = true;
+            btn.textContent = 'Rolling back…';
+            try {
+                const res = await fetch(`/api/projects/${historySlug}/rollback`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${currentUser.idToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ versionId: pendingRollbackVersionId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('✅ ' + (data.message || 'Rollback complete!'), 'success');
+                    closeRollbackConfirm();
+                    closeHistoryModal();
+                    renderProjects();
+                } else {
+                    showToast(data.message || 'Rollback failed', 'error');
+                }
+            } catch (e) {
+                showToast('Rollback failed: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Roll Back';
             }
         }
 

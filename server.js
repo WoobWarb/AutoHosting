@@ -261,6 +261,8 @@ function getFolderStats(dirPath) {
     if (!fs.existsSync(currentPath)) return;
     const items = fs.readdirSync(currentPath);
     for (const item of items) {
+      // Skip version-history snapshots when reporting a project's live size
+      if (item === '.versions') continue;
       const fullPath = path.join(currentPath, item);
       const stat = fs.statSync(fullPath);
       if (stat.isDirectory()) {
@@ -395,6 +397,7 @@ app.get('/api/projects', softAuth, (req, res) => {
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
+        if (entry.name.startsWith('.')) continue; // skip hidden dirs like .versions
         const slug = entry.name;
         const projectPath = path.join(PROJECTS_DIR, slug);
         const metaPath = path.join(projectPath, '.metadata.json');
@@ -478,7 +481,33 @@ app.get('/api/projects', softAuth, (req, res) => {
 });
 
 // Storage Quota Settings (Adaptable for VPS Capacity)
-const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB per upload
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+const MAX_VERSIONS_PER_PROJECT = 20;
+
+// Take a snapshot of a project's current live files into .versions/<timestamp>/ (returns snapshot dir or null if nothing to save)
+function snapshotProjectFiles(targetPath) {
+  try {
+    const items = fs.readdirSync(targetPath).filter(n => !n.startsWith('.'));
+    if (items.length === 0) return null;
+    const versionsDir = path.join(targetPath, '.versions');
+    fs.mkdirSync(versionsDir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const snapshotDir = path.join(versionsDir, stamp);
+    for (const item of items) {
+      fs.cpSync(path.join(targetPath, item), path.join(snapshotDir, item), { recursive: true });
+    }
+    // Prune oldest snapshots beyond the limit
+    const existing = fs.readdirSync(versionsDir, { withFileTypes: true })
+      .filter(e => e.isDirectory()).map(e => e.name).sort();
+    while (existing.length > MAX_VERSIONS_PER_PROJECT) {
+      fs.rmSync(path.join(versionsDir, existing.shift()), { recursive: true, force: true });
+    }
+    return snapshotDir;
+  } catch (e) {
+    console.error('Snapshot failed (non-fatal):', e.message);
+    return null;
+  }
+}
 const QUOTA_NCT_TEAM_BYTES = 500 * 1024 * 1024; // 500MB per NCT Team member (@nctprosperatech.com)
 const QUOTA_PUBLIC_USER_BYTES = 200 * 1024 * 1024; // 200MB per Public User
 
@@ -798,6 +827,8 @@ app.post('/api/projects/:slug/update', requireAuth, upload.single('file'), (req,
 
     // Update File if provided
     if (req.file) {
+      // Snapshot the current live files before they get wiped — enables rollback
+      snapshotProjectFiles(targetPath);
       const originalName = req.file.originalname;
       const ext = path.extname(originalName).toLowerCase();
 
@@ -843,6 +874,8 @@ app.post('/api/projects/:slug/update', requireAuth, upload.single('file'), (req,
           message: `Pasted HTML code exceeds the 50 MB size limit. Your code size: ${(Buffer.byteLength(pastedCode, 'utf8') / (1024 * 1024)).toFixed(1)} MB.`
         });
       }
+      // Snapshot the previous version before overwriting
+      snapshotProjectFiles(targetPath);
       metadata.fileType = 'html';
       metadata.originalFileName = '(pasted code)';
       fs.writeFileSync(path.join(targetPath, 'index.html'), pastedCode, 'utf8');
@@ -870,6 +903,113 @@ app.post('/api/projects/:slug/update', requireAuth, upload.single('file'), (req,
     if (tempFilePath && fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
     console.error('Update Error:', err);
     return res.status(500).json({ success: false, message: 'Update failed: ' + err.message });
+  }
+});
+
+// API: List version history (snapshots) for a project
+app.get('/api/projects/:slug/history', softAuth, (req, res) => {
+  try {
+    const safeSlug = path.basename(req.params.slug);
+    const targetPath = path.join(PROJECTS_DIR, safeSlug);
+    if (!fs.existsSync(targetPath)) {
+      return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+    const versionsDir = path.join(targetPath, '.versions');
+    const versions = [];
+    if (fs.existsSync(versionsDir)) {
+      for (const entry of fs.readdirSync(versionsDir, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        const vPath = path.join(versionsDir, entry.name);
+        // 2026-10-01T08-18-01-884Z -> 2026-10-01T08:18:01.884Z
+        const prettyStamp = entry.name
+          .replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})-(\d{3})Z$/, '$1-$2-$3T$4:$5:$6.$7Z');
+        const stats = getFolderStats(vPath);
+        versions.push({
+          id: entry.name,
+          created: prettyStamp,
+          sizeBytes: stats.totalSize,
+          fileCount: stats.fileCount
+        });
+      }
+    }
+    versions.sort((a, b) => b.created.localeCompare(a.created)); // newest first
+    return res.json({ success: true, versions });
+  } catch (err) {
+    console.error('History Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to read version history: ' + err.message });
+  }
+});
+
+// API: Download a specific version snapshot as .zip
+app.get('/api/projects/:slug/history/:versionId/download', softAuth, (req, res) => {
+  try {
+    const safeSlug = path.basename(req.params.slug);
+    const safeVersionId = path.basename(req.params.versionId);
+    const targetPath = path.join(PROJECTS_DIR, safeSlug);
+    const snapshotPath = path.join(targetPath, '.versions', safeVersionId);
+    if (!fs.existsSync(snapshotPath) || !fs.statSync(snapshotPath).isDirectory()) {
+      return res.status(404).json({ success: false, message: 'Version not found.' });
+    }
+    const zip = new AdmZip();
+    zip.addLocalFolder(snapshotPath);
+    res.set('Content-Type', 'application/zip');
+    res.set('Content-Disposition', `attachment; filename="${safeSlug}-${safeVersionId}.zip"`);
+    return res.send(zip.toBuffer());
+  } catch (err) {
+    console.error('Version Download Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to build version download: ' + err.message });
+  }
+});
+
+// API: Rollback a project to a previous version snapshot
+app.post('/api/projects/:slug/rollback', requireAuth, (req, res) => {
+  try {
+    const safeSlug = path.basename(req.params.slug);
+    const safeVersionId = path.basename((req.body.versionId || '').trim());
+    const targetPath = path.join(PROJECTS_DIR, safeSlug);
+    const snapshotPath = path.join(targetPath, '.versions', safeVersionId);
+
+    if (!fs.existsSync(targetPath)) {
+      return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+    if (!safeVersionId || !fs.existsSync(snapshotPath) || !fs.statSync(snapshotPath).isDirectory()) {
+      return res.status(400).json({ success: false, message: 'Invalid or unknown versionId.' });
+    }
+
+    const metaPath = path.join(targetPath, '.metadata.json');
+    let metadata = {};
+    if (fs.existsSync(metaPath)) {
+      try { metadata = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch (e) {}
+    }
+    const reqUserEmail = req.authUser.email;
+    const projectAuthorEmail = (metadata.author && metadata.author.email) ? metadata.author.email : '';
+    if (projectAuthorEmail && reqUserEmail && projectAuthorEmail.toLowerCase() !== reqUserEmail.toLowerCase() && !isAdmin(reqUserEmail)) {
+      return res.status(403).json({ success: false, message: `Permission denied: Only ${projectAuthorEmail} can roll back this project.` });
+    }
+
+    // Snapshot the CURRENT live state first, so the rollback itself is undoable
+    snapshotProjectFiles(targetPath);
+
+    // Wipe live files (keep .versions)
+    for (const item of fs.readdirSync(targetPath)) {
+      if (!item.startsWith('.')) fs.rmSync(path.join(targetPath, item), { recursive: true, force: true });
+    }
+
+    // Restore snapshot files to live
+    for (const item of fs.readdirSync(snapshotPath)) {
+      fs.cpSync(path.join(snapshotPath, item), path.join(targetPath, item), { recursive: true });
+    }
+
+    const stats = getFolderStats(targetPath);
+    metadata.sizeBytes = stats.totalSize;
+    metadata.fileCount = stats.fileCount;
+    metadata.updatedAt = new Date().toISOString();
+    fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2));
+
+    return res.json({ success: true, message: `Project rolled back to version ${safeVersionId}.`, project: metadata });
+  } catch (err) {
+    console.error('Rollback Error:', err);
+    return res.status(500).json({ success: false, message: 'Rollback failed: ' + err.message });
   }
 });
 
@@ -1013,13 +1153,19 @@ app.get('/api/projects/:slug/download', softAuth, (req, res) => {
       }
     }
 
-    const zip = new AdmZip();
-    zip.addLocalFolder(targetPath);
-    zip.deleteFile('.metadata.json');
-
+    // Build the zip from only visible files — skip internal/hidden entries
+    // (.metadata.json and the entire .versions/ snapshot tree) so the download
+    // is exactly what is live on the web.
+    const source = new AdmZip();
+    source.addLocalFolder(targetPath);
+    const visible = new AdmZip();
+    for (const entry of source.getEntries()) {
+      if (entry.entryName.split('/').some(seg => seg.startsWith('.'))) continue;
+      visible.addFile(entry.entryName, entry.getData());
+    }
     res.set('Content-Type', 'application/zip');
     res.set('Content-Disposition', `attachment; filename="${safeSlug}.zip"`);
-    return res.send(zip.toBuffer());
+    return res.send(visible.toBuffer());
   } catch (err) {
     console.error('Download Error:', err);
     return res.status(500).json({ success: false, message: 'Failed to build download: ' + err.message });
@@ -1033,6 +1179,8 @@ function resolveProjectRequest(reqPath) {
   if (parts.length === 0) return null;
 
   const slug = parts[0];
+  // Never serve version-history snapshots over the web
+  if (parts.some(p => p.startsWith('.'))) return null;
   const projectDir = path.join(PROJECTS_DIR, slug);
   if (!fs.existsSync(projectDir) || !fs.statSync(projectDir).isDirectory()) return null;
 
