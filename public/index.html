@@ -1629,8 +1629,13 @@
             <p style="font-size: 0.85rem; color: var(--text-muted)">อัปเดตไฟล์ใหม่ทับ หรือแก้ไขชื่อ/หมวดหมู่ของโปรเจกต์ <span id="update-modal-slug" style="color: var(--accent-cyan); font-weight: 700;"></span>:</p>
             
             <div class="input-group">
-                <label>Replace File (อัปโหลดไฟล์ใหม่แทนที่ - ไม่บังคับ):</label>
+                <label>Replace Content (อัปโหลดไฟล์ใหม่ หรือ วางโค้ด HTML - ไม่บังคับ):</label>
+                <div class="source-tabs" style="margin-bottom: 8px;">
+                    <button type="button" class="source-tab active" id="update-tab-file" onclick="switchUpdateSourceTab('file')">📁 File</button>
+                    <button type="button" class="source-tab" id="update-tab-code" onclick="switchUpdateSourceTab('code')">⌨️ Paste Code</button>
+                </div>
                 <input type="file" id="update-file-input" class="text-input" accept=".html,.htm,.zip" style="padding: 8px;">
+                <textarea id="update-code-input" class="code-paste-input" style="display: none; min-height: 140px;" placeholder="วางโค้ด HTML ของทั้งไฟล์ที่นี่..." spellcheck="false"></textarea>
             </div>
 
             <div class="input-group">
@@ -1798,6 +1803,7 @@
         let updatingSlug = '';
         let activeSourceTab = 'file'; // 'file' | 'code'
         let lastDeployedUrl = '';
+        let updateSourceTab = 'file'; // 'file' | 'code' (inside the update modal)
 
         // DOM Elements
         const userAuthBox = document.getElementById('user-auth-box');
@@ -2601,6 +2607,8 @@
             document.getElementById('update-title-input').value = proj.title || '';
             document.getElementById('update-desc-input').value = proj.description || '';
             document.getElementById('update-file-input').value = '';
+            document.getElementById('update-code-input').value = '';
+            switchUpdateSourceTab('file');
             
             const spaceSelect = document.getElementById('update-space-select');
             if (spaceSelect) spaceSelect.value = proj.space || 'General';
@@ -2616,6 +2624,15 @@
             updatingSlug = '';
         }
 
+        // Update modal source tabs (Replace via File vs Paste Code)
+        function switchUpdateSourceTab(tab) {
+            updateSourceTab = tab;
+            document.getElementById('update-tab-file').classList.toggle('active', tab === 'file');
+            document.getElementById('update-tab-code').classList.toggle('active', tab === 'code');
+            document.getElementById('update-file-input').style.display = tab === 'file' ? '' : 'none';
+            document.getElementById('update-code-input').style.display = tab === 'code' ? '' : 'none';
+        }
+
         async function confirmUpdateProject() {
             if (!updatingSlug) return;
             const title = document.getElementById('update-title-input').value.trim();
@@ -2624,6 +2641,8 @@
             const visibility = document.getElementById('update-visibility-select').value || 'public';
             const fileInput = document.getElementById('update-file-input');
             const file = fileInput.files.length > 0 ? fileInput.files[0] : null;
+            const updateCodeInput = document.getElementById('update-code-input');
+            const pastedCode = updateSourceTab === 'code' ? updateCodeInput.value.trim() : '';
 
             const btnSave = document.getElementById('btn-confirm-update');
             btnSave.disabled = true;
@@ -2637,6 +2656,7 @@
 
             const formData = new FormData();
             if (file) formData.append('file', file);
+            if (!file && pastedCode) formData.append('code', pastedCode);
             formData.append('title', title);
             formData.append('description', description);
             formData.append('space', space);

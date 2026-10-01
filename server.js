@@ -834,6 +834,19 @@ app.post('/api/projects/:slug/update', requireAuth, upload.single('file'), (req,
       metadata.originalFileName = originalName;
       if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
     }
+    // Update File from pasted HTML code (only when no file was uploaded — a chosen file always wins)
+    const pastedCode = (req.body.code || '').trim();
+    if (!req.file && pastedCode) {
+      if (Buffer.byteLength(pastedCode, 'utf8') > MAX_FILE_SIZE_BYTES) {
+        return res.status(400).json({
+          success: false,
+          message: `Pasted HTML code exceeds the 50 MB size limit. Your code size: ${(Buffer.byteLength(pastedCode, 'utf8') / (1024 * 1024)).toFixed(1)} MB.`
+        });
+      }
+      metadata.fileType = 'html';
+      metadata.originalFileName = '(pasted code)';
+      fs.writeFileSync(path.join(targetPath, 'index.html'), pastedCode, 'utf8');
+    }
 
     // Update fields
     if (req.body.title) metadata.title = req.body.title.trim();
