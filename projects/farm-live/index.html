@@ -157,6 +157,13 @@ body{
         <button class="btn gold" onclick="openStarter()">Open now</button>
       </div>
     </div>
+    <div class="card" id="invite-card">
+      <div class="row">
+        <div class="ic">🤝</div>
+        <div class="info"><b>Invite friends</b><small>Share your link — you earn <b style="color:var(--gold)">20% commission</b> on every purchase from players you invite. They get a welcome bonus too.</small></div>
+        <button class="btn" id="invite-btn" onclick="openInvite()">Invite</button>
+      </div>
+    </div>
     <div class="card">
       <div class="row">
         <div class="ic">🔔</div>
@@ -275,6 +282,8 @@ function defaultState(){
     stats: { harvests:0, plants:0, earned:0 },
     daily: { date: todayStr(), loginDay: 0, claimed: {}, questClaimed: {} },
     lastSeen: Date.now(),
+    ref: null,
+    newbieDone: false,
   };
 }
 let S = load();
@@ -284,10 +293,12 @@ function load(){
     if(!raw) return defaultState();
     const s = JSON.parse(raw);
     const d = defaultState();
-    return Object.assign(d, s, {
+    const merged = Object.assign(d, s, {
       stats: Object.assign(d.stats, s.stats||{}),
       daily: Object.assign(d.daily, s.daily||{})
     });
+    if(!merged.ref && URL_REF_CODE) merged.ref = URL_REF_CODE;
+    return merged;
   }catch(e){ return defaultState(); }
 }
 function save(){ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }
@@ -655,6 +666,122 @@ function floatText(txt){
   setTimeout(()=>el.remove(), 1100);
 }
 
+/* ===== Affiliate: invite friends inside the game ===== */
+const AFF_LINK_BASE = location.origin + '/farm-live';
+let myAffCode = null;
+try{ myAffCode = localStorage.getItem('fl_ref') || null; }catch(e){}
+
+function trackRefClick(){
+  if(!URL_REF_CODE) return;
+  var key = 'fl_tracked_' + URL_REF_CODE;
+  try{ if(sessionStorage.getItem(key) === '1') return; }catch(e){}
+  try{
+    fetch('/api/affiliate/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:URL_REF_CODE})})
+      .then(function(){ try{ sessionStorage.setItem(key,'1'); }catch(e){} })
+      .catch(function(){});
+  }catch(e){}
+}
+
+function newbieBonus(){
+  if(!S.ref || S.newbieDone) return;
+  S.newbieDone = true;
+  S.gold += 50; S.diamonds += 5;
+  save();
+  var done = function(nm){
+    setTimeout(function(){ toast('🎉 Welcome bonus +50 🪙 +5 💎 — จาก ' + nm); }, 1000);
+  };
+  fetch('/api/affiliate/portal/' + encodeURIComponent(S.ref))
+    .then(function(r){ return r.json(); })
+    .then(function(d){ done((d.success && d.partner) ? d.partner.name : 'เพื่อนของคุณ'); })
+    .catch(function(){ done('เพื่อนของคุณ'); });
+}
+
+function affStatBox(label, val){
+  return '<div style="flex:1;min-width:84px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center">'
+    + '<b style="display:block;font-size:18px;color:var(--gold)">' + val + '</b>'
+    + '<small style="color:var(--dim)">' + label + '</small></div>';
+}
+
+function openInvite(){
+  if(myAffCode){ openAffPanel(); return; }
+  const body =
+    '<p style="margin-bottom:14px">ฟรืดุดี — กรอกชื่อกำ + อีเมล แล้วจะได้ลิงก์เชิญเพื่่นเฉพาะของคณ • เพื่่นที่ได้ไปเล่นผ่านลิงก์คณจะได้ Welcome Bonus และคณได้ค่านอม 20% ของยอดที่พวกเขาซื้อก</p>'
+    + '<div style="display:flex;flex-direction:column;gap:10px">'
+    + '<input id="aff-inv-name" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:14px" placeholder="ชื่อกคณ (เช่น สมชาย)" maxlength="60">'
+    + '<input id="aff-inv-email" type="email" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:14px" placeholder="อีเมล (สำหรบรบยอดค่านอม)" maxlength="120">'
+    + '</div>'
+    + '<div id="aff-inv-msg" style="min-height:18px;font-size:13px;margin-top:10px"></div>';
+  openModal('🤝 ชวนเพื่่น — ได้ค่านอม 20%', body, [
+    { txt:'สมครฟรี', cls:'btn gold', fn: submitAffInvite },
+    { txt:'ปิด', cls:'btn ghost', fn: closeModal },
+  ]);
+}
+
+function submitAffInvite(){
+  const nameEl = document.getElementById('aff-inv-name');
+  const emailEl = document.getElementById('aff-inv-email');
+  const msg = document.getElementById('aff-inv-msg');
+  if(!nameEl || !emailEl || !msg) return;
+  const name = nameEl.value.trim();
+  const email = emailEl.value.trim();
+  if(!name || !email){ msg.innerHTML = '<span style="color:var(--red)">กรุณากรอกชื่อกำ + อีเมลให้ครบ</span>'; return; }
+  msg.innerHTML = '<span style="color:var(--dim)">กำลังสมคร...</span>';
+  fetch('/api/affiliate/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email})})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.success){ msg.innerHTML = '<span style="color:var(--red)">' + (d.message || 'เกิดข้อผดพด') + '</span>'; return; }
+      myAffCode = d.partner.code;
+      try{ localStorage.setItem('fl_ref', myAffCode); }catch(e){}
+      openAffPanel();
+    })
+    .catch(function(){ msg.innerHTML = '<span style="color:var(--red)">เชื่่อมต่อไม่สำเร็จ ลองใหม่อีกครัง</span>'; });
+}
+
+function openAffPanel(){
+  const link = AFF_LINK_BASE + '?ref=' + myAffCode;
+  const body =
+    '<div style="font-size:13px;font-weight:600;color:var(--green)">✅ คณคือพารต์เนอร NCT แลว (ค่านอม 20%)</div>'
+    + '<div style="display:flex;gap:8px;margin:12px 0">'
+    + '<input id="aff-inv-link" readonly value="' + link + '" style="flex:1;min-width:0;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:13px">'
+    + '<button class="btn gold" onclick="copyAffLink()">คัดลอก</button>'
+    + '</div>'
+    + '<div id="aff-inv-stats" style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 10px">'
+    + affStatBox('Click', '...') + affStatBox('Orders', '...') + affStatBox('ค่าคอมสะสม', '฿0')
+    + '</div>'
+    + '<p style="font-size:12px;color:var(--dim);line-height:1.6">เพื่่นที่เปดเกมผ่านลิงก์คณได Welcome Bonus +50 🪙 +5 💎 • เมื่อนาเขาซ้บของในเกม ค่านอมคณสะสม 20% — ถอนได้เมื่อครบ ฿500</p>';
+  openModal('🤝 ลิงก์เชิญของคณ', body, [
+    { txt:'รเฟรชสถิต', cls:'btn ghost', fn: openAffPanel },
+    { txt:'ปิด', cls:'btn ghost', fn: closeModal },
+  ]);
+  refreshAffStats();
+}
+
+function refreshAffStats(){
+  if(!myAffCode) return;
+  fetch('/api/affiliate/portal/' + encodeURIComponent(myAffCode))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      const el = document.getElementById('aff-inv-stats');
+      if(!el || !d.success || !d.partner) return;
+      const p = d.partner;
+      el.innerHTML = affStatBox('Click', p.clicks)
+        + affStatBox('Orders', p.ordersCount)
+        + affStatBox('ค่าคอมสะสม', '฿' + Number(p.totalCommission || 0).toLocaleString('th-TH'));
+    })
+    .catch(function(){});
+}
+
+function copyAffLink(){
+  const inp = document.getElementById('aff-inv-link');
+  if(!inp) return;
+  inp.select();
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(inp.value).then(function(){ toast('คัดลอกแลว — แชร์ใหเพื่่นเลย'); });
+    } else { document.execCommand('copy'); toast('คัดลอกแลว'); }
+  }catch(e){ toast('คัดลอกเองจากชนงไดเลย'); }
+}
+
 const navHTML = '<div id="nav" style="display:flex">'
   + '<button class="on" onclick="openSheet(\'farm\')"><span class="ic">🌾</span>farm</button>'
   + '<button onclick="openSheet(\'seeds\')"><span class="ic">🌱</span>seeds</button>'
@@ -663,6 +790,8 @@ const navHTML = '<div id="nav" style="display:flex">'
 document.body.insertAdjacentHTML('beforeend', navHTML);
 
 catchUp();
+trackRefClick();
+newbieBonus();
 render();
 setInterval(render, 1000);
 let prevReady = 0;

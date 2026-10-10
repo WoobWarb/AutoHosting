@@ -1,7 +1,7 @@
 {
   "slug": "farm-live",
   "title": "Farm Live — Farm Idle Game",
-  "description": "เกมฟารมไอดิลบนเว็บ: ปลกพืช, เก็บเกี่ยว, ขายในตลาด, ทำเควส",
+  "description": "เกมฟารมไอดิลบนเวบ: ปลกพช เกบเกยว ขายตลาด ทำเควส + ชวนเพอชนไดคาอม 20%",
   "author": {
     "name": "NCT Support Team",
     "email": "support@nctprosperatech.com",
@@ -12,6 +12,6 @@
   "space": "Client Projects",
   "visibility": "public",
   "createdAt": "2026-10-08T10:00:00.000Z",
-  "sizeBytes": 32325,
+  "sizeBytes": 40036,
   "fileCount": 1
 }
