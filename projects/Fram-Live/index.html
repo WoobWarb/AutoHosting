@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="Farm Live — game farm idle on web: plant, harvest, sell. Earn enough to keep AI running">
+<title>Farm Live — Farm Idle</title>
+<style>
+:root{
+  --bg:#0f1a12; --panel:#18271c; --panel2:#1f3023; --line:#2c4433;
+  --text:#e8f3ea; --dim:#9fb8a6; --gold:#ffd257; --dia:#6fe3ff;
+  --green:#5ecb71; --green-d:#3d9c52; --red:#ff7a6b; --purple:#c08bff;
+  --r:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:radial-gradient(1200px 600px at 50% -10%, #1d3324 0%, var(--bg) 60%);
+  color:var(--text); display:flex; flex-direction:column; min-height:100%;
+  user-select:none;
+}
+#app{max-width:520px;width:100%;margin:0 auto;display:flex;flex-direction:column;flex:1;padding-bottom:76px}
+#topbar{
+  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:8px;
+  padding:10px 12px;background:rgba(15,26,18,.92);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+}
+#topbar .logo{font-weight:800;font-size:17px;letter-spacing:.5px}
+#topbar .logo span{color:var(--green)}
+.curd{display:flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:999px;padding:5px 11px;font-size:14px;font-weight:700;min-width:84px}
+#gold{color:var(--gold)} #diamonds{color:var(--dia)}
+#topbar .grow-btn{margin-left:auto}
+.chip{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:999px;
+  padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer}
+.chip:active{transform:scale(.95)}
+#event{display:none;margin:10px 12px 0;padding:9px 14px;border-radius:12px;font-size:13.5px;font-weight:700;
+  background:linear-gradient(90deg,#3a2a05,#5a3a0a);border:1px solid #8a6a1e;color:#ffd257}
+#field{padding:14px 12px 6px}
+#field h2{font-size:15px;color:var(--dim);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+#grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.plot{
+  aspect-ratio:1/1;border-radius:var(--r);position:relative;cursor:pointer;
+  background:linear-gradient(180deg,#2a4a2f 0%,#223d27 100%);
+  border:2px solid var(--line);overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .12s;
+}
+.plot:active{transform:scale(.96)}
+.plot .emoji{font-size:clamp(30px,9vw,44px);filter:drop-shadow(0 3px 4px rgba(0,0,0,.4))}
+.plot .prog{position:absolute;left:0;bottom:0;height:5px;background:var(--green);width:0%;transition:width .5s}
+.plot .time{position:absolute;top:4px;right:5px;font-size:10px;color:var(--dim);background:rgba(0,0,0,.45);
+  padding:2px 6px;border-radius:8px}
+.plot.ready{border-color:var(--gold);box-shadow:0 0 14px rgba(255,210,87,.35) inset}
+.plot.ready .ring{position:absolute;inset:0;border-radius:calc(var(--r) - 4px);border:2px solid rgba(255,210,87,.8);
+  animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:.9;transform:scale(1)}50%{opacity:.35;transform:scale(1.03)}}
+.plot.locked{background:repeating-linear-gradient(45deg,#1a2a1f 0 10px,#16241b 10px 20px);cursor:pointer;opacity:.85}
+.plot.locked .lock{font-size:22px;opacity:.6}
+.plot.empty .hint{font-size:11px;color:var(--dim);background:rgba(0,0,0,.35);border-radius:8px;padding:3px 8px}
+#readybar{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:40;
+  background:var(--gold);color:#3a2a00;font-weight:800;font-size:15px;border-radius:999px;padding:11px 26px;
+  box-shadow:0 6px 20px rgba(255,210,87,.4);cursor:pointer;white-space:nowrap}
+#energybar{margin:2px 12px 12px}
+#energybar .lbl{font-size:12px;color:var(--dim);display:flex;justify-content:space-between;margin-bottom:4px}
+#energybar .bar{height:10px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;overflow:hidden}
+#energybar .fill{height:100%;background:linear-gradient(90deg,#ff9d57,#ffd257);width:0%;transition:width .5s}
+#nav{position:fixed;bottom:0;left:0;right:0;z-index:50;display:flex;background:rgba(15,26,18,.97);
+  border-top:1px solid var(--line);backdrop-filter:blur(8px)}
+#nav button{flex:1;background:none;border:none;color:var(--dim);padding:9px 2px 11px;font-size:11.5px;cursor:pointer}
+#nav button .ic{display:block;font-size:21px;margin-bottom:2px}
+#nav button.on{color:var(--green)}
+.panel{display:none;flex-direction:column;flex:1}
+.panel.on{display:flex}
+.panel .inner{padding:14px 12px 24px;overflow-y:auto;flex:1}
+.panel h2{font-size:17px;margin-bottom:4px}
+.panel .sub{font-size:13px;color:var(--dim);margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:13px;margin-bottom:11px}
+.card .row{display:flex;align-items:center;gap:11px}
+.card .ic{font-size:30px}
+.card .info{flex:1;min-width:0}
+.card .info b{font-size:14.5px;display:block}
+.card .info small{color:var(--dim);font-size:12px;line-height:1.45;display:block}
+.btn{border:none;border-radius:11px;padding:9px 15px;font-weight:800;font-size:13px;cursor:pointer;
+  background:var(--green-d);color:#fff;white-space:nowrap}
+.btn:active{transform:scale(.95)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.gold{background:linear-gradient(180deg,#ffd257,#e8a921);color:#4a3200}
+.btn.dia{background:linear-gradient(180deg,#6fe3ff,#2f9dc9);color:#063446}
+.btn.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.btn.small{padding:7px 11px;font-size:12px}
+.qitem{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.qitem:last-child{border:none}
+.qitem .box{width:26px;height:26px;border-radius:8px;border:2px solid var(--line);display:flex;align-items:center;
+  justify-content:center;font-size:14px;flex:none}
+.qitem.done .box{background:var(--green-d);border-color:var(--green-d);color:#fff}
+.qitem .t{flex:1}
+.qitem .t b{font-size:13.5px;display:block}
+.qitem .t small{color:var(--dim);font-size:11.5px}
+.qitem .rw{font-size:12px;color:var(--gold);font-weight:700;margin-right:6px}
+#modal-bg{display:none;position:fixed;inset:0;background:rgba(5,10,7,.75);z-index:100;align-items:flex-end;justify-content:center}
+#modal-bg.on{display:flex}
+#modal{width:100%;max-width:520px;background:var(--panel);border-radius:20px 20px 0 0;border-top:1px solid var(--line);
+  padding:18px 16px 26px;max-height:82vh;overflow-y:auto;animation:up .18s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.5}to{transform:translateY(0);opacity:1}}
+#modal h3{font-size:17px;margin-bottom:10px}
+#modal p{font-size:13.5px;color:var(--dim);line-height:1.55;margin-bottom:12px}
+#modal .mrow{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+#toast{position:fixed;top:64px;left:50%;transform:translateX(-50%) translateY(-20px);z-index:200;
+  background:#22352a;border:1px solid var(--green-d);color:var(--text);border-radius:12px;padding:10px 18px;
+  font-size:13.5px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;max-width:90%;text-align:center}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.lb-row{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line);font-size:14px}
+.lb-row:last-child{border:none}
+.lb-row .medal{width:28px;text-align:center;font-size:18px}
+.lb-row .nm{flex:1}
+.lb-row .sc{color:var(--gold);font-weight:700}
+.lb-row.me{background:rgba(94,203,113,.1);border-radius:10px}
+#sp-qr{width:180px;height:180px;margin:12px auto;background:#fff;border-radius:12px;padding:10px}
+#sp-qr canvas{width:100%;height:100%}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div class="logo">🌾 Farm <span>Live</span></div>
+    <div class="curd" id="gold" title="gold">🪙 <b id="gold-n">0</b></div>
+    <div class="curd" id="diamonds" title="diamond">💎 <b id="dia-n">0</b></div>
+    <button class="chip grow-btn" onclick="openSheet('seeds')">🌱 seeds</button>
+  </div>
+  <div id="event"></div>
+  <div id="field">
+    <h2>Planting fields <small style="color:var(--dim);font-weight:400" id="plots-lbl"></small></h2>
+    <div id="grid"></div>
+  </div>
+  <div id="energybar">
+    <div class="lbl"><span>⚡ energy <small id="energy-time"></small></span><span id="energy-n"></span></div>
+    <div class="bar"><div class="fill" id="energy-fill"></div></div>
+  </div>
+  <div id="readybar" onclick="harvestAll()">✨ Harvest all</div>
+</div>
+
+<div class="panel" id="p-farm">
+  <div class="inner">
+    <div class="card">
+      <div class="row">
+        <div class="ic">🧑‍🌾</div>
+        <div class="info"><b>Harvest worker</b><small>Auto-harvests crops including while you're offline (works 24h for you)</small></div>
+        <button class="btn dia" id="worker-btn" onclick="hireWorker()"></button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div class="ic">📦</div>
+        <div class="info"><b>Starter Pack — 29 baht</b><small>💎 500 diamonds + 5 speed-ups + unlock 4 plots | great for beginners</small></div>
+        <button class="btn gold" onclick="openStarter()">Open now</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div class="ic">🔔</div>
+        <div class="info"><b>Crop alerts</b><small>Web Push: "Crops are ready to harvest!" when you're away</small></div>
+        <button class="btn ghost" id="push-btn" onclick="setupPush()">Enable</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="p-seeds">
+  <div class="inner">
+    <h2>Seed shop</h2>
+    <div class="sub">Select a crop, then tap an empty plot to plant • planting costs ⚡10 / plot</div>
+    <div id="seed-list"></div>
+    <div class="card" style="margin-top:6px">
+      <div class="row">
+        <div class="ic">🎰</div>
+        <div class="info"><b>Rare seed gacha</b><small>Chance to get <b style="color:var(--purple)">🌸 rainbow flower</b> (sells for a lot) or a normal seed back</small></div>
+        <button class="btn dia" id="gacha-btn" onclick="doGacha()">Pull 50 💎</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="p-market">
+  <div class="inner">
+    <h2>Market</h2>
+    <div class="sub">Sell price per unit (festival season price x2)</div>
+    <div id="market-list"></div>
+    <div class="card">
+      <div class="row">
+        <div class="ic">⏩</div>
+        <div class="info"><b>Speed up</b><small>Spend diamonds to make the selected plot grow instantly (price depends on time left)</small></div>
+        <button class="btn dia small" id="speed-btn" onclick="speedReady()">Speed up the soonest plot</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="p-quests">
+  <div class="inner">
+    <h2>Daily quests</h2>
+    <div class="sub">Reset every day • 7-day daily login rewards</div>
+    <div class="card">
+      <b style="font-size:14px">📅 Daily login</b>
+      <div class="sub" style="margin-bottom:8px" id="login-sub"></div>
+      <div style="display:flex;gap:6px" id="login-days"></div>
+      <div style="margin-top:10px"><button class="btn gold small" id="login-btn" onclick="claimLogin()">Claim today's reward</button></div>
+    </div>
+    <div class="card">
+      <b style="font-size:14px">🎯 Quests</b>
+      <div class="sub">Rewards when complete</div>
+      <div id="quest-list"></div>
+    </div>
+    <div class="card">
+      <b style="font-size:14px">🏆 Farm leaderboard (friends on server)</b>
+      <div class="sub">Score = gold + diamonds x10 + harvest count x5</div>
+      <div id="lb"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-bg" onclick="if(event.target===this)closeModal()">
+  <div id="modal">
+    <h3 id="m-title"></h3>
+    <div id="m-body"></div>
+    <div class="mrow" id="m-btns"></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   Farm Live — idle farm game (single-file, localStorage save)
+   ============================================================ */
+const SAVE_KEY = 'farmlive_v1';
+const PLOT_MAX = 24;
+const ENERGY_MAX = 100;
+const ENERGY_REGEN_MS = 2 * 60 * 1000;      // +1 every 2 minutes
+const E_PLANT = 10, E_HARVEST = 5;
+const DIA_COST_UNLOCK = [30, 60, 120, 240, 400, 600, 900]; // unlock cost for batch n (first 6 plots free)
+const WORKER_COST = { dia: 30 };
+
+const CROPS = [
+  { id:'herb',    name:'🌿 herb',      growMin:5,   cost:10,  price:28,   seed:'starter' },
+  { id:'cuke',    name:'🥒 cucumber',  growMin:20,  cost:30,  price:95,   seed:'starter' },
+  { id:'chili',   name:'🌶️ chili',    growMin:45,  cost:80,  price:270,  seed:'lv2' },
+  { id:'mango',   name:'🥭 mango',     growMin:120, cost:200, price:820,  seed:'lv3' },
+  { id:'durian',  name:'🍈 durian',    growMin:480, cost:600, price:3600, seed:'lv4' },
+  { id:'rainbow', name:'🌸 rainbow flower', growMin:60, cost:0, price:5200, seed:'gacha' },
+];
+const STAGE_EMOJI = ['🌱','🌿','🪴'];
+
+const QUESTS = [
+  { id:'harv',  desc:'Harvest 10 times',              target:10,  key:'harvests', rw:{dia:15} },
+  { id:'plant', desc:'Plant 15 crops',                target:15,  key:'plants',   rw:{dia:10, gold:300} },
+  { id:'sell',  desc:'Earn 500 gold from selling',    target:500, key:'earned',   rw:{dia:20} },
+  { id:'dia',   desc:'Hold 30 diamonds (balance)',    target:30,  key:'diamonds', rw:{gold:1000} },
+];
+
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function defaultState(){
+  return {
+    gold: 50, diamonds: 20, energy: ENERGY_MAX, energyAt: Date.now(),
+    plots: Array(PLOT_MAX).fill(null),
+    plotsUnlocked: 6,
+    worker: false,
+    speedups: 0,
+    stats: { harvests:0, plants:0, earned:0 },
+    daily: { date: todayStr(), loginDay: 0, claimed: {}, questClaimed: {} },
+    lastSeen: Date.now(),
+  };
+}
+let S = load();
+function load(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return defaultState();
+    const s = JSON.parse(raw);
+    const d = defaultState();
+    return Object.assign(d, s, {
+      stats: Object.assign(d.stats, s.stats||{}),
+      daily: Object.assign(d.daily, s.daily||{})
+    });
+  }catch(e){ return defaultState(); }
+}
+function save(){ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }
+
+function catchUp(){
+  const now = Date.now();
+  let ms = now - S.lastSeen;
+  if(ms < 0) ms = 0;
+  S.lastSeen = now;
+  if(S.energy < ENERGY_MAX){
+    const gained = Math.floor(ms / ENERGY_REGEN_MS);
+    if(gained > 0){ S.energy = Math.min(ENERGY_MAX, S.energy + gained); S.energyAt = now; }
+  }
+  const t = todayStr();
+  if(S.daily.date !== t){
+    S.daily.date = t;
+    S.daily.loginDay = 0;
+    S.daily.claimed = {}; S.daily.questClaimed = {};
+  }
+  if(S.worker){
+    let n = 0;
+    for(const p of S.plots){ if(p && readyAt(p) <= now){ collectCrop(p, true); n++; } }
+    if(n) toast('🧑‍🌾 Worker harvested ' + n + ' crops while you were away');
+  }
+  save();
+}
+
+function cropById(id){ return CROPS.find(c=>c.id===id); }
+function readyAt(p){ const c = cropById(p.crop); return p.plantedAt + c.growMin*60*1000; }
+function festivalOn(){ const d=new Date().getDay(); return d===0||d===6; }
+function priceOf(c){ return festivalOn() ? c.price*2 : c.price; }
+function speedCostMin(minsLeft){ return Math.max(1, Math.ceil(minsLeft/10)); }
+function firstEmpty(){ for(let i=0;i<S.plotsUnlocked;i++) if(!S.plots[i]) return i; return -1; }
+
+function collectCrop(p, byWorker){
+  const c = cropById(p.crop);
+  const got = priceOf(c);
+  S.gold += got; S.stats.earned += got;
+  S.stats.harvests++;
+  if(!byWorker) S.energy = Math.max(0, S.energy - E_HARVEST);
+  p.crop = null; p.plantedAt = null;
+  floatText(byWorker ? '+'+fmt(got)+' 🧑‍🌾' : '+'+fmt(got)+' 🪙');
+}
+
+let plantingCrop = null;
+function pickPlanting(cropId){
+  plantingCrop = (plantingCrop === cropId) ? null : cropId;
+  if(plantingCrop){
+    const c = cropById(cropId);
+    toast('Tap an empty plot to plant '+c.name+' (costs '+fmt(c.cost)+' gold + '+E_PLANT+' energy)');
+  }
+  render();
+}
+function plant(cropId, idx){
+  const c = cropById(cropId);
+  if(!S.plots[idx]) return toast('Pick an empty plot first');
+  if(S.energy < E_PLANT) return toast('Not enough energy — wait for it to recharge');
+  if(S.gold < c.cost) return toast('Not enough gold');
+  S.gold -= c.cost; S.energy -= E_PLANT; S.stats.plants++;
+  S.plots[idx] = { crop: cropId, plantedAt: Date.now() };
+  save(); render();
+  toast('Planted '+c.name+' 🌱');
+}
+function harvestAll(){
+  let n = 0;
+  for(let i=0;i<S.plots.length;i++){
+    const p = S.plots[i];
+    if(p && readyAt(p) <= Date.now() && !S.worker){
+      if(S.energy < E_HARVEST) break;
+      collectCrop(p, false); n++;
+    }
+  }
+  if(n) save();
+  render();
+  if(!n) toast('Nothing ready to harvest yet');
+}
+function speedReady(){
+  let best = -1, bestLeft = Infinity;
+  for(let i=0;i<S.plots.length;i++){
+    const p = S.plots[i];
+    if(!p) continue;
+    const left = readyAt(p) - Date.now();
+    if(left < bestLeft){ bestLeft = left; best = i; }
+  }
+  if(best < 0) return toast('No planted plots');
+  const c = cropById(S.plots[best].crop);
+  if(S.speedups >= 1){
+    S.speedups--;
+    S.plots[best].plantedAt = Date.now() - c.growMin*60*1000 - 1;
+    save(); render();
+    toast('Used a speed-up token! '+c.name+' is ready now');
+    return;
+  }
+  const cost = speedCostMin(Math.max(1, Math.ceil(bestLeft/60000)));
+  if(S.diamonds < cost) return toast('Needs '+cost+' diamonds (speed price depends on time left)');
+  S.diamonds -= cost;
+  S.plots[best].plantedAt = Date.now() - c.growMin*60*1000 - 1;
+  save(); render();
+  toast(c.name+' ready now — spent '+cost+' diamonds');
+}
+function unlockNextPlot(){
+  if(S.plotsUnlocked >= PLOT_MAX) return;
+  const cost = DIA_COST_UNLOCK[S.plotsUnlocked - 6] || 900;
+  if(S.diamonds < cost) return toast('Needs '+cost+' diamonds to unlock the next 4 plots');
+  S.diamonds -= cost; S.plotsUnlocked += 4;
+  save(); render(); toast('Unlocked 4 new plots!');
+}
+function hireWorker(){
+  if(S.worker) return toast('Already have a harvest worker');
+  if(S.diamonds < WORKER_COST.dia) return toast('Needs '+WORKER_COST.dia+' diamonds');
+  S.diamonds -= WORKER_COST.dia; S.worker = true;
+  save(); render(); toast('Hired a harvest worker — auto-harvests 24h for you');
+}
+function doGacha(){
+  if(S.diamonds < 50) return toast('Needs 50 diamonds');
+  const plotIdx = firstEmpty();
+  if(plotIdx < 0) return toast('No empty plots — harvest first');
+  S.diamonds -= 50;
+  const luck = Math.random() < 0.35;
+  S.plots[plotIdx] = { crop: luck ? 'rainbow' : 'herb', plantedAt: Date.now() };
+  save(); render();
+  toast(luck ? 'Got the 🌸 rainbow flower (sells for 5,200 gold)!' : 'This time... a free herb planted in an empty plot');
+}
+
+const LOGIN_REWARDS = {1:{gold:100},2:{dia:10},3:{gold:300},4:{dia:20},5:{speedups:2},6:{gold:1000},7:{dia:100}};
+function applyReward(r){
+  if(r.gold) S.gold += r.gold;
+  if(r.dia) S.diamonds += r.dia;
+  if(r.speedups) S.speedups += r.speedups;
+}
+function claimLogin(){
+  if(S.daily.claimed[todayStr()]) return toast('Already claimed today');
+  if(S.daily.loginDay >= 7) S.daily.loginDay = 0;
+  const day = S.daily.loginDay + 1;
+  S.daily.loginDay = day;
+  S.daily.claimed[todayStr()] = true;
+  applyReward(LOGIN_REWARDS[day]);
+  save(); render(); toast('Claimed day '+day+' login reward!');
+}
+function claimQuest(q){
+  if(S.daily.questClaimed[q.id]) return;
+  const val = q.key==='diamonds' ? S.diamonds : (S.stats[q.key]||0);
+  if(val < q.target) return;
+  S.daily.questClaimed[q.id] = true;
+  applyReward(q.rw);
+  save(); render(); toast('Quest complete! Reward claimed');
+}
+
+function setupPush(){
+  if(!('Notification' in window)) return toast('This device does not support notifications');
+  Notification.requestPermission().then(p=>{
+    const btn = document.getElementById('push-btn');
+    btn.textContent = p==='granted' ? 'Enabled ✓' : 'Denied';
+    btn.disabled = p!=='granted';
+  });
+}
+function notifyReady(){
+  if(!('Notification' in window) || Notification.permission!=='granted') return;
+  try{ new Notification('Farm Live 🌾', { body:'Crops are ready to harvest! Tap to collect', icon:'' }); }catch(e){}
+}
+
+function openStarter(){
+  const m = document.getElementById('m-body');
+  m.innerHTML = '<p>Starter Pack <b style="color:var(--gold)">29 baht</b><br>💎 500 diamonds + ⏩ 5 speed-ups + 🔓 unlock 4 plots</p>'
+    + '<div id="sp-qr"><canvas id="qr" width="160" height="160"></canvas></div>'
+    + '<p style="text-align:center;font-size:11.5px">Scan with the PromptPay app<br><small style="opacity:.7">(demo — live payment not connected yet)</small></p>';
+  openModal('Starter Pack — 29 baht', m, [
+    { txt:'Pay (demo)', cls:'btn gold', fn:()=>{
+        closeModal();
+        applyReward({dia:500, speedups:5});
+        S.plotsUnlocked = Math.min(PLOT_MAX, S.plotsUnlocked+4);
+        save(); render();
+        toast('Payment done (demo)! Received 500 diamonds + 5 speed-ups + 4 plots');
+      }},
+    { txt:'Close', cls:'btn ghost', fn:closeModal },
+  ]);
+  drawQR();
+}
+function drawQR(){
+  const cv = document.getElementById('qr'); if(!cv) return;
+  const ctx = cv.getContext('2d'); const n=17, s=160/n;
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,160,160);
+  ctx.fillStyle='#000';
+  let seed=42;
+  const rnd=()=>{ seed=(seed*9301+49297)%233280; return seed/233280; };
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    const corner=(x<5&&y<5)||(x>=n-5&&y<5)||(x<5&&y>=n-5);
+    if(!corner && rnd()>0.52) ctx.fillRect(x*s,y*s,s,s);
+  }
+  const finder=(cx,cy)=>{
+    ctx.fillStyle='#000'; ctx.fillRect(cx*s,cy*s,5*s,5*s);
+    ctx.fillStyle='#fff'; ctx.fillRect((cx+1)*s,(cy+1)*s,3*s,3*s);
+    ctx.fillStyle='#000'; ctx.fillRect((cx+2)*s,(cy+2)*s,s,s);
+  };
+  finder(1,1); finder(n-6,1); finder(1,n-6);
+}
+
+const BOTS = [
+  {n:'Durian Farmer Grandpa', b:4200},
+  {n:'Auntie Sook',           b:2600},
+  {n:'Mali',                  b:1500},
+  {n:'Khiao',                 b:900},
+  {n:'Uncle Sam',             b:400},
+];
+function score(){ return Math.floor(S.gold + S.diamonds*10 + S.stats.harvests*5); }
+function renderLB(){
+  const rows = BOTS.map(b=>({n:b.n, sc:b.b}))
+    .concat([{n:'You', sc:score(), me:true}]);
+  rows.sort((a,b)=>b.sc-a.sc);
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('lb').innerHTML = rows.map((r,i)=>
+    '<div class="lb-row '+(r.me?'me':'')+'"><span class="medal">'+(medals[i]||'·')+'</span><span class="nm">'+r.n+'</span><span class="sc">'+fmt(r.sc)+'</span></div>').join('');
+}
+
+function fmt(n){ return n>=1000 ? (n>=10000?(n/1000).toFixed(0)+'k':(n/1000).toFixed(1)+'k') : ''+n; }
+function timeLeft(ms){
+  if(ms<=0) return 'ready!';
+  const m=Math.ceil(ms/60000);
+  if(m<60) return m+' min';
+  const h=Math.floor(m/60);
+  if(h<24) return h+' hr';
+  return Math.floor(h/24)+' day';
+}
+
+function render(){
+  const now = Date.now();
+  document.getElementById('gold-n').textContent = fmt(S.gold);
+  document.getElementById('dia-n').textContent = fmt(S.diamonds);
+  const ev = document.getElementById('event');
+  if(festivalOn()){ ev.style.display='block'; ev.textContent='🎪 Weekend festival! All crops sell for x2 — plant fast, harvest fast'; }
+  else ev.style.display='none';
+  if(S.energy < ENERGY_MAX){
+    const gain = Math.floor((now - S.energyAt)/ENERGY_REGEN_MS);
+    if(gain>0){ S.energy = Math.min(ENERGY_MAX, S.energy+gain); S.energyAt = now; }
+  }
+  document.getElementById('energy-n').textContent = S.energy+' / '+ENERGY_MAX;
+  document.getElementById('energy-fill').style.width = (S.energy/ENERGY_MAX*100)+'%';
+  document.getElementById('energy-time').textContent = S.energy<ENERGY_MAX ? '+1 every 2 min' : 'full';
+
+  const g = document.getElementById('grid'); g.innerHTML='';
+  let readyCount = 0;
+  for(let i=0;i<PLOT_MAX;i++){
+    const div = document.createElement('div');
+    div.className = 'plot';
+    if(i >= S.plotsUnlocked){
+      div.classList.add('locked');
+      div.innerHTML = '<span class="lock">🔒</span>';
+      if(i === S.plotsUnlocked) div.onclick = unlockNextPlot;
+      g.appendChild(div); continue;
+    }
+    const p = S.plots[i];
+    if(!p){
+      div.classList.add('empty');
+      div.innerHTML = '<span class="hint">+ plant</span>';
+      if(plantingCrop) div.onclick = (function(id){ return function(){ plant(plantingCrop, id); }; })(i);
+      g.appendChild(div); continue;
+    }
+    const c = cropById(p.crop);
+    const left = readyAt(p) - now;
+    const pct = Math.min(100, ((c.growMin*60000 - left)/(c.growMin*60000))*100);
+    if(left<=0){
+      div.classList.add('ready');
+      div.innerHTML = '<span class="ring"></span><span class="emoji">'+c.name.split(' ')[0]+'</span>';
+      div.onclick = function(){
+        if(!S.worker && S.energy>=E_HARVEST){ collectCrop(p,false); save(); render(); }
+        else if(S.worker) toast('Your worker is already auto-harvesting');
+      };
+      readyCount++;
+    } else {
+      const stage = left > c.growMin*60000*0.66 ? STAGE_EMOJI[0] : left > c.growMin*60000*0.33 ? STAGE_EMOJI[1] : STAGE_EMOJI[2];
+      div.innerHTML = '<span class="time">'+timeLeft(left)+'</span><span class="emoji">'+stage+'</span><div class="prog" style="width:'+pct+'%"></div>';
+      div.onclick = (function(idx,l){ return function(){ openPlotInfo(idx,l); }; })(i,left);
+    }
+    g.appendChild(div);
+  }
+  document.getElementById('plots-lbl').textContent =
+    S.plotsUnlocked+' / '+PLOT_MAX+' plots'+(S.worker?' • 🧑‍🌾 worker active':'');
+  const bar = document.getElementById('readybar');
+  if(readyCount>0 && !S.worker){ bar.style.display='block'; bar.textContent = '✨ '+readyCount+' plots ready — harvest all'; }
+  else bar.style.display='none';
+
+  document.getElementById('seed-list').innerHTML = CROPS.filter(c=>c.id!=='rainbow').map(c=>
+    '<div class="card"><div class="row"><div class="ic">'+c.name.split(' ')[0]+'</div>'
+    + '<div class="info"><b>'+c.name.slice(2)+' <small style="color:var(--dim)">'+c.seed+'</small></b>'
+    + '<small>grows in '+(c.growMin<60?c.growMin+' min':(c.growMin/60)+' hr')+' • plant '+fmt(c.cost)+' gold • sell '+fmt(priceOf(c))+' gold'+(festivalOn()?' <b style="color:var(--gold)">x2</b>':'')+'</small></div>'
+    + '<button class="btn '+(plantingCrop===c.id?'gold':'ghost')+' small" onclick="pickPlanting(\''+c.id+'\')">'+(plantingCrop===c.id?'planting…':'plant')+'</button></div></div>').join('');
+  document.getElementById('gacha-btn').disabled = S.diamonds<50;
+
+  document.getElementById('market-list').innerHTML = CROPS.map(c=>
+    '<div class="qitem"><div class="t"><b>'+c.name+'</b><small>grows in '+(c.growMin<60?c.growMin+' min':(c.growMin/60)+' hr')+'</small></div>'
+    + '<span class="rw">'+fmt(priceOf(c))+' gold'+(festivalOn()?' x2':'')+'</span></div>').join('');
+
+  document.getElementById('quest-list').innerHTML = QUESTS.map((q,idx)=>{
+    const val = q.key==='diamonds' ? S.diamonds : (S.stats[q.key]||0);
+    const done = val >= q.target;
+    const claimed = !!S.daily.questClaimed[q.id];
+    const rw = (q.rw.dia?fmt(q.rw.dia)+' diamonds ':'')+(q.rw.gold?fmt(q.rw.gold)+' gold':'');
+    return '<div class="qitem '+(done&&claimed?'done':'')+'"><div class="box">'+(claimed?'✓':done?'★':'')+'</div>'
+      + '<div class="t"><b>'+q.desc+'</b><small>'+Math.min(val,q.target)+'/'+q.target+' • '+rw+'</small></div>'
+      + '<button class="btn small '+(done&&!claimed?'gold':'ghost')+'" '+(claimed||!done?'disabled':'')+' onclick="claimQuest(QUESTS['+idx+'])">'+(claimed?'claimed':'claim')+'</button></div>';
+  }).join('');
+
+  const sub = S.daily.loginDay>=7 ? '7 days complete! New cycle starts tomorrow' : 'Today is day '+(S.daily.loginDay+1)+'/7';
+  document.getElementById('login-sub').textContent = sub;
+  document.getElementById('login-days').innerHTML = Array.from({length:7},(_,i)=>{
+    const done = i < S.daily.loginDay;
+    const big = i===6;
+    return '<div style="flex:1;height:34px;border-radius:8px;background:'+(done?'var(--green-d)':'var(--panel2)')+';border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:'+(big?'16px':'12px')+';font-weight:700;color:'+(done?'#fff':'var(--dim)')+'">'+(done?'✓':(big?'💎':(i+1)))+'</div>';
+  }).join('');
+  document.getElementById('login-btn').disabled = !!S.daily.claimed[todayStr()] || S.daily.loginDay>=7;
+
+  const wb = document.getElementById('worker-btn');
+  wb.textContent = S.worker ? 'Hired ✓' : 'Hire 30 diamonds';
+  wb.disabled = S.worker || S.diamonds < WORKER_COST.dia;
+
+  renderLB();
+  save();
+}
+
+function openPlotInfo(i, left){
+  const p = S.plots[i]; const c = cropById(p.crop);
+  const cost = S.speedups>=1 ? 'free (uses 1 token)' : fmt(speedCostMin(Math.max(1,Math.ceil(left/60000))))+' diamonds';
+  openModal(c.name,
+    '<p>Time left: <b style="color:var(--text)">'+timeLeft(left)+'</b><br>Value at harvest: '+fmt(priceOf(c))+' gold'+(festivalOn()?' <b style="color:var(--gold)">x2 festival</b>':'')+'</p>',
+    [
+      { txt:'⏩ Speed up ('+cost+')', cls:'btn dia', fn:()=>{ closeModal(); speedReady(); }},
+      { txt:'Close', cls:'btn ghost', fn:closeModal },
+    ]);
+}
+function openModal(title, bodyHTML, btns){
+  document.getElementById('m-title').textContent = title;
+  document.getElementById('m-body').innerHTML = bodyHTML;
+  const row = document.getElementById('m-btns'); row.innerHTML='';
+  btns.forEach(bt=>{
+    const el = document.createElement('button');
+    el.className = bt.cls; el.textContent = bt.txt; el.onclick = bt.fn;
+    row.appendChild(el);
+  });
+  document.getElementById('modal-bg').classList.add('on');
+}
+function openSheet(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  const el = document.getElementById('p-'+id);
+  if(el) el.classList.add('on');
+  document.getElementById('field').style.display = id==='farm' ? 'block' : 'none';
+  document.getElementById('energybar').style.display = id==='farm' ? 'block' : 'none';
+  const map = { farm:0, seeds:1, market:2, quests:3 };
+  document.querySelectorAll('#nav button').forEach((b,i)=>b.classList.toggle('on', i===map[id]));
+  render();
+}
+function closeModal(){ document.getElementById('modal-bg').classList.remove('on'); }
+let toastTimer = null;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('on'), 2600);
+}
+function floatText(txt){
+  const el = document.createElement('div');
+  el.textContent = txt;
+  el.style.cssText = 'position:fixed;left:50%;top:40%;transform:translateX(-50%);z-index:150;font-size:18px;font-weight:800;color:var(--gold);pointer-events:none;transition:all 1s;opacity:1';
+  document.body.appendChild(el);
+  setTimeout(()=>{ el.style.top='30%'; el.style.opacity='0'; }, 60);
+  setTimeout(()=>el.remove(), 1100);
+}
+
+const navHTML = '<div id="nav" style="display:flex">'
+  + '<button class="on" onclick="openSheet(\'farm\')"><span class="ic">🌾</span>farm</button>'
+  + '<button onclick="openSheet(\'seeds\')"><span class="ic">🌱</span>seeds</button>'
+  + '<button onclick="openSheet(\'market\')"><span class="ic">🏪</span>market</button>'
+  + '<button onclick="openSheet(\'quests\')"><span class="ic">🎯</span>quests</button></div>';
+document.body.insertAdjacentHTML('beforeend', navHTML);
+
+catchUp();
+render();
+setInterval(render, 1000);
+let prevReady = 0;
+setInterval(()=>{
+  let r = 0;
+  for(const p of S.plots) if(p && readyAt(p) <= Date.now()) r++;
+  if(r>prevReady) notifyReady();
+  prevReady = r;
+}, 5000);
+</script>
+</body>
+</html>

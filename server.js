@@ -1472,8 +1472,20 @@ function resolveProjectRequest(reqPath) {
   const slug = parts[0];
   // Never serve version-history snapshots over the web
   if (parts.some(p => p.startsWith('.'))) return null;
-  const projectDir = path.join(PROJECTS_DIR, slug);
-  if (!fs.existsSync(projectDir) || !fs.statSync(projectDir).isDirectory()) return null;
+  let projectDir = path.join(PROJECTS_DIR, slug);
+  if (!fs.existsSync(projectDir) || !fs.statSync(projectDir).isDirectory()) {
+    try {
+      const entries = fs.readdirSync(PROJECTS_DIR);
+      const match = entries.find(e => e.toLowerCase() === slug.toLowerCase() && !e.startsWith('.'));
+      if (match) {
+        projectDir = path.join(PROJECTS_DIR, match);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
 
   const subPath = parts.slice(1).join('/');
   let targetFile = path.join(projectDir, subPath);
