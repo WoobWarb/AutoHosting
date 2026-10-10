@@ -1502,6 +1502,12 @@ app.use((req, res, next) => {
     return next();
   }
 
+  // Handle typo alias /Fram-Live or /projects/Fram-Live -> redirect to /farm-live/
+  if (/^\/(?:projects\/)?fram-live(?:\/.*)?$/i.test(req.path)) {
+    const rest = req.path.replace(/^\/(?:projects\/)?fram-live/i, '');
+    return res.redirect(301, '/farm-live' + (rest || '/'));
+  }
+
   const resolved = resolveProjectRequest(req.path);
   if (!resolved) return next();
 

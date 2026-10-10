@@ -234,6 +234,12 @@ body{
    Farm Live — idle farm game (single-file, localStorage save)
    ============================================================ */
 const SAVE_KEY = 'farmlive_v1';
+const URL_REF_CODE = (function(){
+  try{
+    const c = new URLSearchParams(location.search).get('ref') || '';
+    return c.toLowerCase().replace(/[^a-z0-9-]/g,'').slice(0,32);
+  }catch(e){ return ''; }
+})();
 const PLOT_MAX = 24;
 const ENERGY_MAX = 100;
 const ENERGY_REGEN_MS = 2 * 60 * 1000;      // +1 every 2 minutes
