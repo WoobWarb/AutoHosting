@@ -1687,6 +1687,27 @@
         </div>
     </div>
 
+    <!-- ID/Pass Login Modal -->
+    <div class="modal-overlay" id="pass-login-modal">
+        <div class="dialog-card" style="max-width: 400px;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; color: #fff;">🔑 Login with ID / Password</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted)">Login ด้วย ID/Pass ท่ีแอดมินให้ว (ไมต่้อง Google)</p>
+            <div class="input-group">
+                <label>ID</label>
+                <input type="text" id="pass-login-id" class="text-input" placeholder="e.g. woob" autocomplete="username" maxlength="40">
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="pass-login-pass" class="text-input" placeholder="••••••••" autocomplete="current-password" maxlength="80" onkeydown="if(event.key==='Enter') submitPassLogin()">
+            </div>
+            <div id="pass-login-error" style="display:none; font-size: 0.85rem; color: #fca5a5; margin-top: 6px;"></div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                <button onclick="closePassLoginModal()" class="btn-action" style="flex: none;">Cancel</button>
+                <button id="pass-login-submit" onclick="submitPassLogin()" class="btn-upload" style="width: auto; height: 38px; padding: 0 20px;">Login</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Delete Confirmation Modal -->
     <div class="modal-overlay" id="delete-confirm-modal">
         <div class="dialog-card" style="max-width: 420px;">
@@ -1994,6 +2015,9 @@
                         <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
                         <span>Sign in with Google</span>
                     </button>
+                    <button id="pass-login-btn" onclick="openPassLoginModal()" class="btn-google-fallback" style="border-color: rgba(99,102,241,0.4); color:#c7d2fe;">
+                        <span>🔑 ID / Password</span>
+                    </button>
                 `;
                 guestAuthBanner.style.display = 'flex';
                 setTimeout(initGoogleGIS, 100);
@@ -2019,7 +2043,59 @@
             }
         }
 
-        function openEditNameModal() {
+        // ---- ID/Pass login flow ----
+        function openPassLoginModal() {
+            document.getElementById('pass-login-id').value = '';
+            document.getElementById('pass-login-pass').value = '';
+            document.getElementById('pass-login-error').style.display = 'none';
+            document.getElementById('pass-login-modal').classList.add('active');
+            setTimeout(() => document.getElementById('pass-login-id').focus(), 50);
+        }
+
+        function closePassLoginModal() {
+            document.getElementById('pass-login-modal').classList.remove('active');
+        }
+
+        async function submitPassLogin() {
+            const id = document.getElementById('pass-login-id').value.trim();
+            const password = document.getElementById('pass-login-pass').value;
+            const errBox = document.getElementById('pass-login-error');
+            const btn = document.getElementById('pass-login-submit');
+            if (!id || !password) { errBox.textContent = 'กรุณาใส่ ID และ Password'; errBox.style.display = 'block'; return; }
+            btn.disabled = true; btn.textContent = 'กำลัง Login…';
+            try {
+                const res = await fetch('/api/pass/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, password })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    currentUser = {
+                        name: data.name || id,
+                        email: 'pass:' + id.toLowerCase(),
+                        picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name || id)}&background=6366f1&color=fff`,
+                        passUser: true,
+                        idToken: data.token
+                    };
+                    localStorage.setItem('nct_user_profile', JSON.stringify(currentUser));
+                    closePassLoginModal();
+                    renderUserHeader();
+                    renderProjects();
+                    loadProjects();
+                    showToast(`Welcome, ${currentUser.name}!`, 'success');
+                } else {
+                    errBox.textContent = data.message || 'Login ไม่สำเร็จ';
+                    errBox.style.display = 'block';
+                }
+            } catch (e) {
+                errBox.textContent = 'เกิดข้อผิดพลาดในการเชื่อมต่อ — ลองอีกครั้ง';
+                errBox.style.display = 'block';
+            }
+            btn.disabled = false; btn.textContent = 'Login';
+        }
+
+                function openEditNameModal() {
             if (!currentUser) return;
             document.getElementById('edit-name-input').value = currentUser.name;
             document.getElementById('edit-name-modal').classList.add('active');

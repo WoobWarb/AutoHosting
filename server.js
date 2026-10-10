@@ -35,14 +35,73 @@ async function verifyGoogleToken(idToken) {
   }
 }
 
+// ---------------- ID/Pass local credentials (no Google required) ----------------
+// users.json lives next to server.js (gitignored). Each entry:
+// { "woob": { name, salt, hash (scrypt hex), admin } }
+const PASS_USERS_FILE = path.join(__dirname, 'users.json');
+let PASS_USERS = {};
+try { PASS_USERS = JSON.parse(fs.readFileSync(PASS_USERS_FILE, 'utf8')); } catch (e) {}
+
+function hashPass(password, salt) {
+  return crypto.scryptSync(password, salt, 64).toString('hex');
+}
+function savePassUsers() {
+  fs.writeFileSync(PASS_USERS_FILE, JSON.stringify(PASS_USERS, null, 2));
+}
+function verifyPassCredentials(id, password) {
+  const rec = PASS_USERS[String(id).toLowerCase()];
+  if (!rec || !rec.salt || !rec.hash || !password) return null;
+  const candidate = Buffer.from(hashPass(password, rec.salt));
+  const stored = Buffer.from(rec.hash);
+  if (candidate.length !== stored.length || !crypto.timingSafeEqual(candidate, stored)) return null;
+  return { email: 'pass:' + String(id).toLowerCase(), name: rec.name || id, passUser: true, admin: !!rec.admin };
+}
+
+// CLI: node server.js --add-user <id> <password> [--admin]
+if (require.main === module && process.argv[2] === '--add-user') {
+  const uid = process.argv[3]; const pwd = process.argv[4]; const wantAdmin = process.argv[5] === '--admin';
+  if (!uid || !pwd) { console.error('Usage: node server.js --add-user <id> <password> [--admin]'); process.exit(1); }
+  const key = uid.toLowerCase();
+  const salt = crypto.randomBytes(16).toString('hex');
+  const prevAdmin = (PASS_USERS[key] && PASS_USERS[key].admin) || false;
+  PASS_USERS[key] = { name: uid, salt, hash: hashPass(pwd, salt), admin: wantAdmin || prevAdmin };
+  savePassUsers();
+  console.log('PASS user "' + uid + '" saved' + (PASS_USERS[key].admin ? ' (admin)' : ''));
+  process.exit(0);
+}
+
+// Verify a signed session token (same format as the nct_session cookie: id|expiry|sig).
+// Lets API calls carry the ID/Pass session via Authorization: Bearer <token>.
+function verifySessionToken(raw) {
+  if (!raw) return null;
+  try {
+    const parts = String(raw).split('|');
+    const id = parts[0], expiry = parts[1], sig = parts[2];
+    if (!id || !expiry || !sig) return null;
+    if (Date.now() > parseInt(expiry, 10)) return null;
+    const expected = crypto.createHmac('sha256', SESSION_SECRET).update(id + '|' + expiry).digest('hex');
+    const sigBuf = Buffer.from(sig); const expBuf = Buffer.from(expected);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
+    return id;
+  } catch (e) { return null; }
+}
+
 // Middleware: require a valid Google ID token in the Authorization header.
 // Attaches the server-verified identity to req.authUser — never trust a client-supplied email.
+// Also accepts ID/Pass session tokens (signed with SESSION_SECRET) as Bearer tokens.
 async function requireAuth(req, res, next) {
   const authHeader = req.headers['authorization'] || '';
   const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  const user = await verifyGoogleToken(idToken);
+  let user = idToken ? await verifyGoogleToken(idToken) : null;
+  if (!user && idToken) {
+    const idPart = verifySessionToken(idToken);
+    if (idPart && idPart.startsWith('pass:')) {
+      const rec = PASS_USERS[idPart.slice(5)];
+      if (rec) user = { email: idPart, name: rec.name || idPart.slice(5), passUser: true, admin: !!rec.admin };
+    }
+  }
   if (!user) {
-    return res.status(401).json({ success: false, message: 'Authentication required. Please sign in with Google.' });
+    return res.status(401).json({ success: false, message: 'Authentication required. Please sign in (Google or ID/Pass).' });
   }
   req.authUser = user;
   next();
@@ -54,7 +113,15 @@ async function requireAuth(req, res, next) {
 async function softAuth(req, res, next) {
   const authHeader = req.headers['authorization'] || '';
   const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  req.authUser = await verifyGoogleToken(idToken);
+  let user = idToken ? await verifyGoogleToken(idToken) : null;
+  if (!user && idToken) {
+    const idPart = verifySessionToken(idToken);
+    if (idPart && idPart.startsWith('pass:')) {
+      const rec = PASS_USERS[idPart.slice(5)];
+      if (rec) user = { email: idPart, name: rec.name || idPart.slice(5), passUser: true, admin: !!rec.admin };
+    }
+  }
+  req.authUser = user;
   next();
 }
 
@@ -62,7 +129,13 @@ async function softAuth(req, res, next) {
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '0deathwolf@gmail.com')
   .split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
 function isAdmin(email) {
-  return !!email && ADMIN_EMAILS.includes(email.toLowerCase());
+  if (!email) return false;
+  if (ADMIN_EMAILS.includes(email.toLowerCase())) return true;
+  if (email.startsWith('pass:')) {
+    const rec = PASS_USERS[email.slice(5)];
+    return !!(rec && rec.admin);
+  }
+  return false;
 }
 
 // Session cookie: lets a plain browser page-navigation (which can't carry an Authorization
@@ -107,6 +180,8 @@ function getSessionEmail(req) {
     return null;
   }
 }
+
+
 
 // API: Establish a session cookie after Google sign-in (needed so page navigation to a
 // "self"-visibility project URL can be recognized as coming from the owner/admin)
@@ -174,6 +249,28 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// API: Login with local ID/Pass credentials — sets the same nct_session cookie and
+// returns a signed session token for use as Authorization: Bearer on API calls.
+app.post('/api/pass/login', (req, res) => {
+  const id = String((req.body && req.body.id) || '').trim();
+  const password = String((req.body && req.body.password) || '');
+  if (!id || !password) return res.status(400).json({ success: false, message: 'ID and password are required.' });
+  const user = verifyPassCredentials(id, password);
+  if (!user) return res.status(401).json({ success: false, message: 'ID or password is incorrect.' });
+  const idPart = 'pass:' + id.toLowerCase();
+  const expiry = Date.now() + 12 * 60 * 60 * 1000; // 12h
+  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(idPart + '|' + expiry).digest('hex');
+  const token = idPart + '|' + expiry + '|' + sig;
+  res.cookie('nct_session', token, {
+    httpOnly: true,
+    secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
+    sameSite: 'lax',
+    maxAge: 12 * 60 * 60 * 1000
+  });
+  res.json({ success: true, token, name: user.name });
+});
+
 app.use(express.urlencoded({ extended: true }));
 
 // Middleware to prevent browser caching of dashboard HTML
@@ -570,7 +667,7 @@ app.post('/api/upload', requireAuth, upload.single('file'), (req, res) => {
 
     // Enforce Per-User Storage Quota
     const userEmail = author.email.toLowerCase();
-    const isNctTeam = userEmail.endsWith('@nctprosperatech.com');
+    const isNctTeam = userEmail.endsWith('@nctprosperatech.com') || userEmail.startsWith('pass:');
     const userQuotaBytes = isNctTeam ? QUOTA_NCT_TEAM_BYTES : QUOTA_PUBLIC_USER_BYTES;
     const currentUsedBytes = getUserTotalStorageBytes(userEmail);
 
@@ -720,7 +817,7 @@ app.post('/api/upload-code', requireAuth, (req, res) => {
 
     // Enforce Per-User Storage Quota (same limits as file uploads)
     const userEmail = author.email.toLowerCase();
-    const isNctTeam = userEmail.endsWith('@nctprosperatech.com');
+    const isNctTeam = userEmail.endsWith('@nctprosperatech.com') || userEmail.startsWith('pass:');
     const userQuotaBytes = isNctTeam ? QUOTA_NCT_TEAM_BYTES : QUOTA_PUBLIC_USER_BYTES;
     const currentUsedBytes = getUserTotalStorageBytes(userEmail);
 
