@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="NCT — งาน 3D CAD, IoT/Smart City Dashboard, เว็บบนคลาวด์ และระบบ Affiliate ที่สร้างรายได้ให้คุณ">
+<title>NCT Hub — งาน 3D · IoT · Web · Affiliate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#090d16; --card:rgba(15,23,42,.75); --card-h:rgba(30,41,59,.85);
+  --line:rgba(255,255,255,.1); --line-h:rgba(99,102,241,.45);
+  --primary:#6366f1; --grad:linear-gradient(135deg,#6366f1 0%,#a855f7 50%,#ec4899 100%);
+  --grad-ai:linear-gradient(135deg,#8b5cf6 0%,#ec4899 100%);
+  --cyan:#06b6d4; --green:#10b981; --gold:#fbbf24; --danger:#ef4444;
+  --t:#f8fafc; --muted:#94a3b8; --r:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Plus Jakarta Sans','Prompt',sans-serif; background:var(--bg); color:var(--t);
+  background-image:radial-gradient(circle at 15% 10%,rgba(99,102,241,.16) 0%,transparent 45%),
+                   radial-gradient(circle at 85% 80%,rgba(236,72,153,.12) 0%,transparent 45%);
+  background-attachment:fixed;
+}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+section{padding:64px 0}
+h2.sec{font-size:clamp(24px,4vw,34px);font-weight:800;margin-bottom:8px}
+p.sub{color:var(--muted);font-size:15px;max-width:640px;margin-bottom:32px}
+.chip{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  background:rgba(99,102,241,.15);border:1px solid var(--line-h);color:#c7d2fe;padding:5px 12px;border-radius:999px;margin-bottom:14px}
+
+/* header */
+header{position:sticky;top:0;z-index:50;background:rgba(9,13,22,.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+.logo{font-weight:800;font-size:19px;letter-spacing:.02em}
+.logo b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.nav .links{display:flex;gap:22px;font-size:14px;color:var(--muted)}
+.nav .links a:hover{color:var(--t)}
+@media(max-width:640px){.nav .links{display:none}}
+.btn{display:inline-block;padding:12px 22px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;border:none;transition:.2s}
+.btn-p{background:var(--grad);color:#fff;box-shadow:0 8px 24px rgba(99,102,241,.35)}
+.btn-p:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(99,102,241,.5)}
+.btn-o{background:transparent;border:1px solid var(--line-h);color:var(--t)}
+.btn-o:hover{background:rgba(99,102,241,.12)}
+
+/* hero */
+.hero{padding:88px 0 72px;text-align:center}
+.hero h1{font-size:clamp(30px,5.6vw,52px);font-weight:800;line-height:1.18;max-width:760px;margin:0 auto 18px}
+.hero h1 span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--muted);font-size:clamp(15px,2.2vw,18px);max-width:620px;margin:0 auto 30px}
+.hero .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.hero .badges{margin-top:34px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.hero .badges span{border:1px solid var(--line);border-radius:999px;padding:7px 14px;background:rgba(15,23,42,.6)}
+
+/* work grid */
+.grid{display:grid;gap:20px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:860px){.g2,.g4{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.g2,.g4{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px;transition:.2s}
+.card:hover{background:var(--card-h);border-color:var(--line-h);transform:translateY(-3px)}
+.card .ic{font-size:30px;margin-bottom:12px}
+.card h3{font-size:17px;font-weight:700;margin-bottom:8px}
+.card p{color:var(--muted);font-size:13.5px;line-height:1.6}
+.card .tag{display:inline-block;margin-top:14px;font-size:12px;font-weight:700;color:#a5b4fc}
+.card .live{margin-top:6px;font-size:12.5px;color:var(--green);font-weight:600}
+
+/* services */
+.svc{display:flex;flex-direction:column;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:26px;position:relative;transition:.2s}
+.svc:hover{border-color:var(--line-h);background:var(--card-h)}
+.svc .lvl{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:999px;width:fit-content}
+.lvl-h{background:rgba(236,72,153,.15);color:#f9a8d4}
+.lvl-m{background:rgba(6,182,212,.15);color:#67e8f9}
+.lvl-l{background:rgba(251,191,36,.15);color:#fcd34d}
+.svc h3{font-size:18px;font-weight:700}
+.svc .price{font-size:22px;font-weight:800;margin:10px 0 4px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.svc ul{list-style:none;color:var(--muted);font-size:13.5px;line-height:1.9;margin:8px 0 18px}
+.svc ul li::before{content:'✓ ';color:var(--green);font-weight:700}
+.svc .btn{margin-top:auto}
+
+/* affiliate */
+.aff{background:linear-gradient(160deg,rgba(99,102,241,.14) 0%,rgba(236,72,153,.1) 100%);border:1px solid var(--line-h);border-radius:24px;padding:40px}
+.aff-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:36px;align-items:start}
+@media(max-width:820px){.aff-grid{grid-template-columns:1fr}}
+.steps{display:flex;flex-direction:column;gap:14px;margin-top:22px}
+.step{display:flex;gap:14px;align-items:flex-start}
+.step .n{width:34px;height:34px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
+.step h4{font-size:15px;margin-bottom:3px}
+.step p{font-size:13px;color:var(--muted)}
+.comm{margin-top:26px;padding:16px;border:1px dashed var(--line-h);border-radius:12px;font-size:14px}
+.comm b{color:var(--gold)}
+form.aff-form{display:flex;flex-direction:column;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px}
+form.aff-form label{font-size:13px;font-weight:600;color:var(--muted)}
+form.aff-form input{background:rgba(9,13,22,.7);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--t);font-size:14px;font-family:inherit}
+form.aff-form input:focus{outline:none;border-color:var(--line-h)}
+.aff-result{display:none;background:var(--card);border:1px solid var(--line-h);border-radius:var(--r);padding:24px;margin-top:14px}
+.aff-result .link-box{display:flex;gap:8px;margin-top:10px}
+.aff-result .link-box input{flex:1;min-width:0}
+.aff-stats{display:flex;gap:18px;margin-top:18px;flex-wrap:wrap}
+.aff-stats .stat{background:rgba(9,13,22,.6);border:1px solid var(--line);border-radius:12px;padding:12px 16px;min-width:100px}
+.aff-stats .stat b{display:block;font-size:20px;color:#a5b4fc}
+.aff-stats .stat span{font-size:12px;color:var(--muted)}
+.msg-ok{color:var(--green);font-size:13px;font-weight:600}
+.msg-err{color:var(--danger);font-size:13px;font-weight:600}
+.partner-panel{display:none;background:rgba(15,23,42,.5);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-top:20px}
+
+/* footer */
+footer{border-top:1px solid var(--line);padding:40px 0;text-align:center;color:var(--muted);font-size:13.5px}
+footer .flinks{display:flex;gap:18px;justify-content:center;margin-bottom:14px;flex-wrap:wrap}
+footer .flinks a:hover{color:var(--t)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <div class="logo"><b>NCT</b> Hub</div>
+    <nav class="links">
+      <a href="#work">ผลงาน</a>
+      <a href="#services">บริการ & ราคา</a>
+      <a href="#affiliate">Affiliate</a>
+      <a href="#contact">ติดต่อ</a>
+    </nav>
+    <a class="btn btn-p" style="padding:10px 18px" href="#contact">ขอใบเสนอราคา</a>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <span class="chip">Live · html.nctprosperatech.com</span>
+    <h1>งาน 3D · IoT · Web<br>ที่ <span>จบจริงใน 3–7 วัน</span></h1>
+    <p>NCT (nctprosperatech.com) รับงาน 3D CAD, Dashboard IoT/Smart City และเว็บบนคลาวด์ — งานทุกชิ้น deploy ขึ้น air ให้ดูได้จริงทันที</p>
+    <div class="cta">
+      <a class="btn btn-p" href="#services">ดูบริการ & ราคา</a>
+      <a class="btn btn-o" href="#affiliate">เข้าร่วม Affiliate →</a>
+    </div>
+    <div class="badges">
+      <span>🎮 ลองเล่น Farm Live ได้เลย</span>
+      <span>🏗️ 3D CAD / Print 3D</span>
+      <span>📡 IoT · Smart City</span>
+      <span>☁️ Web & Deploy</span>
+    </div>
+  </div>
+</section>
+
+<!-- WORK -->
+<section id="work">
+  <div class="wrap">
+    <span class="chip">ผลงานจริง</span>
+    <h2 class="sec">ดูงานจริง — เปิดดูได้เลย</h2>
+    <p class="sub">ทุกชิ้นคือของจริงในเครื่่องของพวกเรา เปิด link ดูได้ทันที ไม่ใช่ม็อกอัพ</p>
+    <div class="grid g4">
+      <a class="card" href="/farm-live">
+        <div class="ic">🎮</div>
+        <h3>Farm Live — เกมฟาร์มไอดิล</h3>
+        <p>เกมปลูก/เก็บ/ขายบนเว็บ ปลูกพืช เก็บเกี่ยว ขายในตลาด ทำเควส สะสมทอง เพื่อยังชีพ AI</p>
+        <span class="tag">Web Game · Live</span>
+        <div class="live">▶ เปิดเล่นตอนนี้</div>
+      </a>
+      <a class="card" href="/smart-city-framework-mindmap">
+        <div class="ic">🏙️</div>
+        <h3>Smart City Framework</h3>
+        <p>แผนผังความคิด Smart City Framework ภาพรวมระบบเมืองอัจฉริยะ สำหรับนำเสนอ</p>
+        <span class="tag">IoT · Smart City</span>
+        <div class="live">▶ เปิดดูตอนนี้</div>
+      </a>
+      <div class="card">
+        <div class="ic">🏗️</div>
+        <h3>3D CAD / Print 3D</h3>
+        <p>งานโมเดล 3D (Fusion 360, Blender, OpenSCAD) export STL/3MF พร้อมพิมพ์ — งานต้นแบบ ชิ้นส่วน ชิ้นตกแต่ง</p>
+        <span class="tag">3D CAD · Fusion/Blender</span>
+      </div>
+      <div class="card">
+        <div class="ic">☁️</div>
+        <h3>Web & Auto Deploy</h3>
+        <p>แพลตฟอร์ม AutoHosting — upload HTML/ZIP หรือ paste code แล้วขึ้น air ในไม่กี่วินาที (คุณเห็นเว็บนี้เพราะระบบนี้)</p>
+        <span class="tag">Node/Express · Nginx · Live</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section id="services" style="padding-top:20px">
+  <div class="wrap">
+    <span class="chip">บริการ & ราคา</span>
+    <h2 class="sec">เลือกบริการที่ต้องการ</h2>
+    <p class="sub">ราคาตามตลาดจริง (อ้างอิง Fastwork / ผู้ให้บริการ 3D) ปรับตามความซับซ้อนของงาน — ทุกงานมี demo บน AutoHosting ให้ดูก่อนตัดสินใจ</p>
+    <div class="grid g2">
+      <div class="svc">
+        <span class="lvl lvl-h">High-Ticket</span>
+        <h3>Done-for-You 3D/CAD</h3>
+        <div class="price">฿8,000–25,000/ชิ้น</div>
+        <ul>
+          <li>ส่งงานใน 3 วัน + แก้ 2 รอบ</li>
+          <li>ไฟล์ STL/3MF พร้อมพิมพ์ 3D</li>
+          <li>Render แสดงผลให้ดู</li>
+          <li>รับเฉพาะ 3 คิว/เดือน</li>
+        </ul>
+        <a class="btn btn-p" href="#contact">สนใจงาน 3D</a>
+      </div>
+      <div class="svc">
+        <span class="lvl lvl-h">High-Ticket</span>
+        <h3>IoT / Smart City Dashboard Sprint</h3>
+        <div class="price">฿15,000–40,000/โปรเจกต์</div>
+        <ul>
+          <li>เสร็จใน 7 วัน + demo ก่อนเริ่ม</li>
+          <li>Dashboard จริงบน AutoHosting</li>
+          <li>รองรับอุปกรณ์ 4G/WiFi, SOS, Water Treatment</li>
+          <li>สอนโอนงานให้ทีมลูกค้า</li>
+        </ul>
+        <a class="btn btn-p" href="#contact">สนใจงาน IoT</a>
+      </div>
+      <div class="svc">
+        <span class="lvl lvl-m">Mid-Ticket</span>
+        <h3>Landing/Web + Deploy</h3>
+        <div class="price">฿3,000–8,000/หน้า</div>
+        <ul>
+          <li>เสร็จใน 48 ชม.</li>
+          <li>ขึ้น air ใน html.nctprosperatech.com (subpath)</li>
+          <li>Responsive + SEO เบื้องต้น</li>
+          <li>แก้อย่างน้อย 1 รอบ</li>
+        </ul>
+        <a class="btn btn-o" href="#contact">สนใจงานเว็บบ</a>
+      </div>
+      <div class="svc">
+        <span class="lvl lvl-l">Low-Ticket · Pre-sale</span>
+        <h3>Digital Product (Early Bird)</h3>
+        <div class="price">฿490–990</div>
+        <ul>
+          <li>Icon/UI pack หรือ Mini-course</li>
+          <li>Early Bird ถึงวันอาทิตย์</li>
+          <li>เข้ากลุ่ม Private ได้</li>
+          <li>อัปเดตตลอด</li>
+        </ul>
+        <a class="btn btn-o" href="#contact">ดูรายละเอียด</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AFFILIATE -->
+<section id="affiliate">
+  <div class="wrap">
+    <div class="aff">
+      <div class="aff-grid">
+        <div>
+          <span class="chip" style="background:rgba(236,72,153,.15);border-color:rgba(236,72,153,.4);color:#f9a8d4">Affiliate Program</span>
+          <h2 class="sec">ชวนคน → ได้ค่าคอม 20%</h2>
+          <p class="sub" style="margin-bottom:0">แนะนำ NCT ให้คนที่รู้จัก — เมื่อมีคนซื้อบริการผ่านลิงก์ของคุณ คุณได้รับค่าคอมมิชชัน 20% ของยอดงาน</p>
+          <div class="steps">
+            <div class="step"><div class="n">1</div><div><h4>สมัครฟรีด้านล่าง</h4><p>กรอกชื่อ + อีเมล แล้วได้ลิงก์เฉพาะของคุณทันที</p></div></div>
+            <div class="step"><div class="n">2</div><div><h4>แชร์ลิงก์ให้คนรู้จัก</h4><p>ส่งผ่าน LINE, Facebook, กลุ่มที่เล่น — คนที่เข้าผ่านลิงก์คุณจะถูกนับ</p></div></div>
+            <div class="step"><div class="n">3</div><div><h4>รับค่าคอม 20%</h4><p>เมื่อลูกค้าจ่ายงานของคุณ ค่าคอมเข้ายอดสะสม — ถอนได้เมื่อครบ ฿500</p></div></div>
+          </div>
+          <div class="comm">💰 ค่าคอม: <b>20% ของยอดงาน</b> · ขั้นต่ำการถอน <b>฿500</b> · ตัวอย่าง: ลูกค้าซื้องาน ฿10,000 → คุณได้ <b>฿2,000</b></div>
+        </div>
+        <div>
+          <form class="aff-form" id="affForm">
+            <label>ชื่อ (แสดงในลิงก์)</label>
+            <input type="text" id="affName" placeholder="เช่น สมชาย" maxlength="60" required>
+            <label>อีเมล (สำหรับรับยอดค่าคอม)</label>
+            <input type="email" id="affEmail" placeholder="you@email.com" maxlength="120" required>
+            <button class="btn btn-p" type="submit" id="affSubmit">สมัคร Affiliate ฟรี</button>
+            <div id="affMsg"></div>
+          </form>
+          <div class="aff-result" id="affResult">
+            <div class="msg-ok">✅ สมัครสำเร็จ — นี่คือลิงก์ของคุณ</div>
+            <div class="link-box">
+              <input type="text" id="affLink" readonly>
+              <button class="btn btn-o" id="affCopy" type="button">คัดลอก</button>
+            </div>
+            <div class="aff-stats">
+              <div class="stat"><b id="stClicks">0</b><span>Click</span></div>
+              <div class="stat"><b id="stOrders">0</b><span>Orders</span></div>
+              <div class="stat"><b id="stComm">฿0</b><span>ค่าคอมสะสม</span></div>
+            </div>
+          </div>
+          <div class="partner-panel" id="partnerPanel">
+            <div style="font-weight:700;margin-bottom:10px">🔗 คุณกำลังเข้าผ่านลิงก์พาร์ทเนอร์</div>
+            <div class="aff-stats">
+              <div class="stat"><b id="ppClicks">0</b><span>Click</span></div>
+              <div class="stat"><b id="ppComm">฿0</b><span>ค่าคอมสะสม</span></div>
+            </div>
+            <p style="font-size:12.5px;color:var(--muted);margin-top:10px">ลิงก์ของพาร์ทเนอร์คนนี้ทำงานถูกต้อง — ถ้าคุณอยากเข้าร่วมของคุณเอง กรุณาสมัครด้านล่าง</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact" style="padding-top:20px">
+  <div class="wrap">
+    <span class="chip">ติดต่อ</span>
+    <h2 class="sec">เริ่มงาน / ขอใบเสนอราคา</h2>
+    <p class="sub">ส่งรายละเอียดงานมา — รับคำตอบพร้อมใบเสนอราคาภายใน 1 วันทำการ</p>
+    <div class="grid g2">
+      <div class="card">
+        <div class="ic">✉️</div>
+        <h3>อีเมล</h3>
+        <p>ส่งรายละเอียดงาน + งบประมาณโดยประมาณ<br>ตอบกลับพร้อมใบเสนอราคา</p>
+        <a class="btn btn-p" style="margin-top:16px" href="mailto:support@nctprosperatech.com?subject=ขอใบเสนอราคา NCT">support@nctprosperatech.com</a>
+      </div>
+      <div class="card">
+        <div class="ic">🎮</div>
+        <h3>ลองดูผลงานก่อน</h3>
+        <p>ถ้ายังไม่ชัวร์ ลองเล่นเกม Farm Live หรือดู Smart City Mindmap ได้เลย — ดูงานจริงก่อนตัดสินใจ</p>
+        <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+          <a class="btn btn-o" href="/farm-live">▶ Farm Live</a>
+          <a class="btn btn-o" href="/smart-city-framework-mindmap">🏙️ Smart City</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="flinks">
+      <a href="/farm-live">Farm Live</a>
+      <a href="/smart-city-framework-mindmap">Smart City</a>
+      <a href="https://html.nctprosperatech.com/">Dashboard</a>
+      <a href="#affiliate">Affiliate</a>
+    </div>
+    <div>© 2026 NCT · nctprosperatech.com · Powered by AutoHosting</div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var BASE = location.origin;
+  var qs = new URLSearchParams(location.search);
+  var ref = (qs.get('ref') || '').toLowerCase().slice(0,32);
+  var tracked = false;
+
+  function fmtB(n){ return '฿' + Number(n||0).toLocaleString('th-TH'); }
+
+  function track(){
+    if(!ref || sessionStorage.getItem('nct_tracked_'+ref) === '1') return;
+    try{
+      fetch('/api/affiliate/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:ref})})
+        .then(function(){ sessionStorage.setItem('nct_tracked_'+ref,'1'); });
+    }catch(e){}
+  }
+
+  function loadPartner(code){
+    fetch('/api/affiliate/portal/'+encodeURIComponent(code))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(!d.success || !d.partner) return;
+        var p = d.partner;
+        if(code === ref){
+          var pp = document.getElementById('partnerPanel');
+          pp.style.display = 'block';
+          document.getElementById('ppClicks').textContent = p.clicks;
+          document.getElementById('ppComm').textContent = fmtB(p.totalCommission);
+        }
+      }).catch(function(){});
+  }
+
+  function showResult(partner){
+    var r = document.getElementById('affResult');
+    r.style.display = 'block';
+    document.getElementById('affLink').value = partner.link;
+    document.getElementById('stClicks').textContent = partner.clicks;
+    document.getElementById('stOrders').textContent = partner.ordersCount;
+    document.getElementById('stComm').textContent = fmtB(partner.totalCommission);
+    try{ localStorage.setItem('nct_ref', partner.code); }catch(e){}
+  }
+
+  function refreshMy(){
+    var code = null;
+    try{ code = localStorage.getItem('nct_ref'); }catch(e){}
+    if(!code) return;
+    fetch('/api/affiliate/portal/'+encodeURIComponent(code))
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if(d.success && d.partner) showResult(d.partner); }).catch(function(){});
+  }
+
+  document.getElementById('affForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var name = document.getElementById('affName').value.trim();
+    var email = document.getElementById('affEmail').value.trim();
+    var msg = document.getElementById('affMsg');
+    var btn = document.getElementById('affSubmit');
+    if(!name || !email){ msg.innerHTML = '<div class="msg-err">กรุณากรอกชื่อ + อีเมล</div>'; return; }
+    btn.disabled = true; btn.textContent = 'กำลังสมัคร...';
+    fetch('/api/affiliate/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email})})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(!d.success){ msg.innerHTML = '<div class="msg-err">'+(d.message||'เกิดข้อผิดพลาด')+'</div>'; btn.disabled=false; btn.textContent='สมัคร Affiliate ฟรี'; return; }
+        msg.innerHTML = d.existing ? '<div class="msg-ok">✅ เคยสมัครแล้ว — แสดงลิงก์เดิมของคุณ</div>' : '<div class="msg-ok">✅ ยินดีด้วย! คุณเป็นพาร์ทเนอร์ NCT แล้ว</div>';
+        showResult(d.partner);
+        btn.textContent = 'สมัครแล้ว ✓';
+      })
+      .catch(function(){ msg.innerHTML='<div class="msg-err">เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง</div>'; btn.disabled=false; btn.textContent='สมัคร Affiliate ฟรี'; });
+  });
+
+  document.getElementById('affCopy').addEventListener('click', function(){
+    var inp = document.getElementById('affLink');
+    inp.select();
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(inp.value).then(function(){ alert('คัดลอกแล้ว — แชร์ลิงก์นี้ได้เลย'); });
+      } else { document.execCommand('copy'); alert('คัดลอกแล้ว'); }
+    }catch(e){ alert('คัดลอกไม่สำเร็จ — คัดลอกด้วยตนเองได้เลย'); }
+  });
+
+  // boot
+  if(ref){ track(); loadPartner(ref); }
+  refreshMy();
+})();
+</script>
+</body>
+</html>

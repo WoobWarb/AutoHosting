@@ -1269,6 +1269,200 @@ app.get('/api/projects/:slug/download', softAuth, (req, res) => {
   }
 });
 
+// ============================================================================
+// AFFILIATE PROGRAM
+// Partners (from the public landing page /nct-hub) get a unique referral code.
+// They share https://html.nctprosperatech.com/nct-hub?ref=CODE — every click is
+// tracked, and when the owner/admin records an order that came from a partner,
+// the partner's balance grows by their commission rate. Payouts are recorded
+// manually by the owner (no automatic money movement — keep it auditable).
+// Data lives in affiliate.json (gitignored, same pattern as users.json).
+// ============================================================================
+const AFFILIATE_FILE = path.join(__dirname, 'affiliate.json');
+function loadAffiliateData() {
+  try { return JSON.parse(fs.readFileSync(AFFILIATE_FILE, 'utf8')); } catch (e) { return null; }
+}
+let AFFILIATE = loadAffiliateData();
+if (!AFFILIATE || !AFFILIATE.partners) {
+  AFFILIATE = {
+    settings: { defaultCommissionRate: 20, minPayout: 500 },
+    partners: {},
+    orders: [],
+    clicks: []
+  };
+}
+function saveAffiliate() {
+  fs.writeFileSync(AFFILIATE_FILE, JSON.stringify(AFFILIATE, null, 2));
+}
+function makeAffiliateCode(name) {
+  const base = (String(name || 'partner').replace(/[^a-z0-9]/gi, '') || 'p').slice(0, 8).toLowerCase();
+  const rand = crypto.randomBytes(3).toString('hex').slice(0, 4);
+  return base + '-' + rand;
+}
+
+// --- Partner public portal helpers -------------------------------------------
+function publicPartnerView(code) {
+  const p = AFFILIATE.partners[code.toLowerCase()];
+  if (!p) return null;
+  const base = process.env.PUBLIC_BASE_URL || 'https://html.nctprosperatech.com';
+  return {
+    code: p.code,
+    name: p.name,
+    commissionRate: p.commissionRate,
+    clicks: p.clicks || 0,
+    ordersCount: p.ordersCount || 0,
+    totalCommission: p.balance || 0,
+    link: `${base}/nct-hub?ref=${p.code}`
+  };
+}
+
+// API: Public — join the affiliate program. Returns the partner's referral code/link.
+// Re-joining with the same email returns the existing partnership (no duplicates).
+app.post('/api/affiliate/join', (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim().slice(0, 60);
+    const email = String(req.body.email || '').trim().toLowerCase().slice(0, 120);
+    if (!name) return res.status(400).json({ success: false, message: 'Please enter your name.' });
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ success: false, message: 'Please enter a valid email.' });
+
+    let existing = null;
+    for (const p of Object.values(AFFILIATE.partners)) if (p.email === email) { existing = p; break; }
+    if (existing) {
+      return res.json({ success: true, existing: true, partner: publicPartnerView(existing.code) });
+    }
+
+    let code = makeAffiliateCode(name);
+    while (AFFILIATE.partners[code]) code = makeAffiliateCode(name) + Math.floor(Math.random() * 90 + 10);
+    const rate = Math.min(50, Math.max(5, Number(req.body.commissionRate) || AFFILIATE.settings.defaultCommissionRate));
+    AFFILIATE.partners[code] = {
+      code, name, email,
+      commissionRate: rate,
+      clicks: 0, ordersCount: 0, balance: 0,
+      paidOut: 0,
+      createdAt: new Date().toISOString()
+    };
+    saveAffiliate();
+    return res.json({ success: true, existing: false, partner: publicPartnerView(code) });
+  } catch (err) {
+    console.error('Affiliate join error:', err);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
+// API: Public — track a referral click (landing page calls this when ?ref=CODE is present).
+app.post('/api/affiliate/track', (req, res) => {
+  try {
+    const code = String(req.body.code || '').toLowerCase().slice(0, 32);
+    if (!code) return res.json({ success: false, message: 'Missing code.' });
+    const p = AFFILIATE.partners[code];
+    if (!p) return res.status(404).json({ success: false, message: 'Unknown code.' });
+    p.clicks = (p.clicks || 0) + 1;
+    const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || (req.socket && req.socket.remoteAddress) || '';
+    AFFILIATE.clicks.push({ code, ip, ua: String(req.headers['user-agent'] || '').slice(0, 120), at: new Date().toISOString() });
+    // keep the click log bounded (~10k entries)
+    if (AFFILIATE.clicks.length > 10000) AFFILIATE.clicks = AFFILIATE.clicks.slice(-5000);
+    saveAffiliate();
+    return res.json({ success: true, clicks: p.clicks });
+  } catch (err) {
+    console.error('Affiliate track error:', err);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
+// API: Public — partner portal lookup (own stats + link) by code
+app.get('/api/affiliate/portal/:code', (req, res) => {
+  const view = publicPartnerView(req.params.code);
+  if (!view) return res.status(404).json({ success: false, message: 'Not found.' });
+  res.json({ success: true, partner: view });
+});
+
+// Middleware: require an admin session via the nct_session cookie (set by the dashboard
+// login flows). Used by the affiliate admin console page, which can't carry a Bearer token.
+function requireCookieAdmin(req, res, next) {
+  const email = getSessionEmail(req);
+  if (!email || !isAdmin(email)) {
+    return res.status(403).json({ success: false, message: 'Admin session required. Sign in on the dashboard first.' });
+  }
+  req.authUser = { email };
+  next();
+}
+
+// API: Owner/admin — record an order that came from a partner → credit commission
+app.post('/api/affiliate/order', requireCookieAdmin, (req, res) => {
+  try {
+    if (!isAdmin(req.authUser.email)) return res.status(403).json({ success: false, message: 'Admin only.' });
+    const code = String(req.body.code || '').toLowerCase().trim();
+    const amount = Number(req.body.amount);
+    if (!code || !AFFILIATE.partners[code]) return res.status(400).json({ success: false, message: 'Unknown partner code.' });
+    if (!isFinite(amount) || amount <= 0) return res.status(400).json({ success: false, message: 'Invalid amount.' });
+    const note = String(req.body.note || '').slice(0, 200);
+    const p = AFFILIATE.partners[code];
+    const commission = Math.round(amount * (p.commissionRate / 100));
+    const order = {
+      id: 'ord-' + crypto.randomBytes(5).toString('hex'),
+      code, amount, commission, note,
+      by: req.authUser.email, at: new Date().toISOString()
+    };
+    AFFILIATE.orders.push(order);
+    p.balance = (p.balance || 0) + commission;
+    p.ordersCount = (p.ordersCount || 0) + 1;
+    saveAffiliate();
+    return res.json({ success: true, order, balance: p.balance });
+  } catch (err) {
+    console.error('Affiliate order error:', err);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
+// API: Owner/admin — record a payout (reduces balance, logs it)
+app.post('/api/affiliate/payout', requireCookieAdmin, (req, res) => {
+  try {
+    if (!isAdmin(req.authUser.email)) return res.status(403).json({ success: false, message: 'Admin only.' });
+    const code = String(req.body.code || '').toLowerCase().trim();
+    const p = AFFILIATE.partners[code];
+    if (!p) return res.status(400).json({ success: false, message: 'Unknown partner code.' });
+    const amount = Number(req.body.amount);
+    if (!isFinite(amount) || amount <= 0 || amount > (p.balance || 0)) return res.status(400).json({ success: false, message: 'Invalid amount (max = balance).' });
+    const method = String(req.body.method || 'transfer').slice(0, 40);
+    p.balance -= amount;
+    p.paidOut = (p.paidOut || 0) + amount;
+    p.payouts = p.payouts || [];
+    p.payouts.push({ amount, method, by: req.authUser.email, at: new Date().toISOString() });
+    saveAffiliate();
+    return res.json({ success: true, balance: p.balance, paidOut: p.paidOut });
+  } catch (err) {
+    console.error('Affiliate payout error:', err);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
+// API: Owner/admin — full affiliate dashboard data
+app.get('/api/affiliate/summary', requireCookieAdmin, (req, res) => {
+  try {
+    if (!isAdmin(req.authUser.email)) return res.status(403).json({ success: false, message: 'Admin only.' });
+    const partners = Object.values(AFFILIATE.partners).map(p => ({
+      code: p.code, name: p.name, email: p.email,
+      commissionRate: p.commissionRate,
+      clicks: p.clicks || 0, ordersCount: p.ordersCount || 0,
+      balance: p.balance || 0, paidOut: p.paidOut || 0,
+      createdAt: p.createdAt
+    })).sort((a, b) => (b.balance + b.paidOut) - (a.balance + a.paidOut));
+    const totals = {
+      partners: partners.length,
+      totalClicks: partners.reduce((s, p) => s + p.clicks, 0),
+      totalOrders: AFFILIATE.orders.length,
+      totalCommission: AFFILIATE.orders.reduce((s, o) => s + o.commission, 0),
+      totalPaidOut: partners.reduce((s, p) => s + (p.paidOut || 0), 0),
+      totalBalance: partners.reduce((s, p) => s + (p.balance || 0), 0),
+      recentClicks: (AFFILIATE.clicks || []).slice(-25).reverse()
+    };
+    return res.json({ success: true, totals, partners, orders: AFFILIATE.orders.slice(-50).reverse() });
+  } catch (err) {
+    console.error('Affiliate summary error:', err);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
 // Serve hosted projects at both /projects/<slug> and directly at /<slug>, gated by visibility
 function resolveProjectRequest(reqPath) {
   const strippedPath = reqPath.startsWith('/projects/') ? reqPath.slice('/projects'.length) : reqPath;

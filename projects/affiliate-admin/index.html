@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Affiliate Admin — NCT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#090d16;--card:rgba(15,23,42,.75);--line:rgba(255,255,255,.1);--line-h:rgba(99,102,241,.45);--primary:#6366f1;--grad:linear-gradient(135deg,#6366f1,#a855f7,#ec4899);--cyan:#06b6d4;--green:#10b981;--gold:#fbbf24;--danger:#ef4444;--t:#f8fafc;--muted:#94a3b8;--r:16px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans','Prompt',sans-serif;background:var(--bg);color:var(--t);
+  background-image:radial-gradient(circle at 15% 10%,rgba(99,102,241,.16) 0%,transparent 45%),radial-gradient(circle at 85% 80%,rgba(236,72,153,.12) 0%,transparent 45%);background-attachment:fixed;min-height:100vh}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+header{position:sticky;top:0;z-index:50;background:rgba(9,13,22,.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--line);padding:16px 0}
+.hrow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+h1{font-size:20px;font-weight:800}
+h1 span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+a.hlink{font-size:13px;color:var(--muted);border:1px solid var(--line);padding:8px 14px;border-radius:10px}
+a.hlink:hover{color:var(--t)}
+section{padding:32px 0}
+h2{font-size:16px;font-weight:700;margin-bottom:16px}
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:520px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+.kpi b{display:block;font-size:24px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.kpi span{font-size:12px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:20px}
+@media(max-width:820px){.grid2{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;padding:10px 8px;border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.05em}
+td{padding:12px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
+tr:hover td{background:rgba(99,102,241,.06)}
+code.link{font-size:12px;background:rgba(99,102,241,.12);border:1px solid var(--line-h);padding:3px 8px;border-radius:6px;word-break:break-all}
+.pos{color:var(--green);font-weight:700}
+.btn{padding:10px 16px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;border:none;transition:.2s}
+.btn-p{background:var(--grad);color:#fff}
+.btn-p:hover{transform:translateY(-1px)}
+.btn-o{background:transparent;border:1px solid var(--line-h);color:var(--t)}
+.btn-s{background:rgba(6,182,212,.15);color:#67e8f9;font-size:12px;padding:6px 10px}
+.formrow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.formrow input,.formrow select{background:rgba(9,13,22,.7);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--t);font-size:13.5px;font-family:inherit}
+.formrow input:focus{outline:none;border-color:var(--line-h)}
+.formrow .grow{flex:1;min-width:140px}
+.empty{color:var(--muted);font-size:13.5px;padding:20px 0;text-align:center}
+.locked{display:none;max-width:480px;margin:80px auto;padding:40px;background:var(--card);border:1px solid var(--line-h);border-radius:20px;text-align:center}
+.locked h1{margin-bottom:12px}
+.locked p{color:var(--muted);font-size:14px;line-height:1.7}
+.muted{color:var(--muted);font-size:12.5px}
+.clicks td{font-size:12.5px}
+</style>
+</head>
+<body>
+<header><div class="wrap hrow">
+  <h1>🔐 Affiliate <span>Admin Console</span></h1>
+  <a class="hlink" href="/">← ดาซบอรด์ (dashboard)</a>
+</div></header>
+
+<div class="locked" id="locked">
+  <h1>ต้องล็อกอินก่อน</h1>
+  <p>หน้่นี้อ่านได้นั้ท่ีเพิ่่เจ้าของ (admin) ท่ียัง login อยู่ในดาซบอรด์<br>กรุณาเปิด <a href="/" style="color:#a5b4fc">ดาซบอรด์</a> ล็อกอิน แล้วกลับมาราย</p>
+</div>
+
+<div id="main" style="display:none">
+<div class="wrap">
+  <section>
+    <div class="kpis">
+      <div class="kpi"><b id="kPartners">0</b><span>พาร์ทเนอรท์</span></div>
+      <div class="kpi"><b id="kClicks">0</b><span>Click ทั้่งหมด</span></div>
+      <div class="kpi"><b id="kOrders">0</b><span>Order</span></div>
+      <div class="kpi"><b id="kComm">฿0</b><span>ค่านอมท่ียังไม่จ่าย</span></div>
+      <div class="kpi"><b id="kPaid">฿0</b><span>จ่ายแล้ว</span></div>
+      <div class="kpi"><b id="kTotal">฿0</b><span>ยอดรวมค่านอม</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>บันท่ึ order / ปล่อยค่านอม</h2>
+    <div class="panel">
+      <form id="orderForm">
+        <div class="formrow">
+          <input class="grow" type="text" id="oCode" placeholder="พาร์ทเนอรคโคท (เชน somchai-a1b2)" list="partnerCodes" required>
+          <input type="number" id="oAmount" placeholder="ยอดงาน (บาท)" min="1" required>
+          <input class="grow" type="text" id="oNote" placeholder="หมายเหตุ (เชน งาน 3D, invoice #12)">
+          <button class="btn btn-p" type="submit">บันท่ึ order</button>
+        </div>
+      </form>
+      <datalist id="partnerCodes"></datalist>
+      <div id="orderMsg"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>พาร์ทเนอรท์</h2>
+    <div class="panel" style="overflow-x:auto">
+      <table>
+        <thead><tr><th>โคท</th><th>ชื่่อ</th><th>อีเมล</th><th>ค่านอม</th><th>Click</th><th>Order</th><th>ยอดสะสม</th><th>จ่ายแล้ว</th><th></th></tr></thead>
+        <tbody id="partnerRows"></tbody>
+      </table>
+      <div class="empty" id="partnerEmpty">ยังไม่มีพาร์ทเนอรท์</div>
+    </div>
+  </section>
+
+  <section class="grid2">
+    <div>
+      <h2>Order ท่ีแล้้ว</h2>
+      <div class="panel" style="overflow-x:auto">
+        <table>
+          <thead><tr><th>เวลา</th><th>พาร์ทเนอร</th><th>ยอด</th><th>ค่านอม</th><th>หมายเหตุ</th></tr></thead>
+          <tbody id="orderRows"></tbody>
+        </table>
+        <div class="empty" id="orderEmpty">ยังไมม่ี order</div>
+      </div>
+    </div>
+    <div>
+      <h2>Click 50 ทีท่ีแล้้ว</h2>
+      <div class="panel" style="overflow-x:auto;max-height:420px">
+        <table class="clicks">
+          <thead><tr><th>เวลา</th><th>โคท</th><th>IP</th></tr></thead>
+          <tbody id="clickRows"></tbody>
+        </table>
+        <div class="empty" id="clickEmpty">ยังไมม่ี click</div>
+      </div>
+    </div>
+  </section>
+</div>
+</div>
+
+<script>
+(function(){
+  var B = location.origin;
+  function fmtB(n){return '฿'+Number(n||0).toLocaleString('th-TH');}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+  function load(){
+    fetch('/api/affiliate/summary',{credentials:'same-origin'})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(!d.success){ showLocked(d.message); return; }
+        showMain(d);
+      })
+      .catch(function(){ showLocked('เชื่่อมต่่อไม่สำเร็จ'); });
+  }
+
+  function showLocked(msg){
+    document.getElementById('main').style.display='none';
+    var l=document.getElementById('locked'); l.style.display='block';
+    if(msg) l.querySelector('p').innerHTML='❌ '+esc(msg)+'<br><br>กรุณาเปิด <a href="/" style="color:#a5b4fc">ดาซบอรด์</a> ล็อกอิน แล้้วกลับมาราย';
+  }
+
+  function showMain(d){
+    document.getElementById('locked').style.display='none';
+    document.getElementById('main').style.display='block';
+    var t=d.totals;
+    document.getElementById('kPartners').textContent=t.partners;
+    document.getElementById('kClicks').textContent=t.totalClicks.toLocaleString('th-TH');
+    document.getElementById('kOrders').textContent=t.totalOrders;
+    document.getElementById('kComm').textContent=fmtB(t.totalBalance);
+    document.getElementById('kPaid').textContent=fmtB(t.totalPaidOut);
+    document.getElementById('kTotal').textContent=fmtB(t.totalCommission);
+
+    // partners
+    var pr=document.getElementById('partnerRows'); pr.innerHTML='';
+    var pe=document.getElementById('partnerEmpty'); pe.style.display=d.partners.length?'none':'block';
+    var dl=document.getElementById('partnerCodes'); dl.innerHTML='';
+    d.partners.forEach(function(p){
+      var tr=document.createElement('tr');
+      tr.innerHTML='<td><code class="link">'+esc(p.code)+'</code></td>'+
+        '<td>'+esc(p.name)+'</td><td>'+esc(p.email)+'</td><td>'+p.commissionRate+'%</td>'+
+        '<td>'+p.clicks+'</td><td>'+p.ordersCount+'</td>'+
+        '<td class="pos">'+fmtB(p.balance)+'</td><td>'+fmtB(p.paidOut)+'</td>'+
+        '<td>'+((p.balance>=500)?'<button class="btn btn-s" onclick="doPayout(\''+esc(p.code)+'\')">จ่าย '+fmtB(p.balance)+'</button>':'<span class="muted">ยังไม่ครบ</span>')+'</td>';
+      pr.appendChild(tr);
+      var opt=document.createElement('option'); opt.value=p.code; dl.appendChild(opt);
+    });
+
+    // orders
+    var orow=document.getElementById('orderRows'); orow.innerHTML='';
+    document.getElementById('orderEmpty').style.display=d.orders.length?'none':'block';
+    d.orders.forEach(function(o){
+      var tr=document.createElement('tr');
+      var dt=new Date(o.at); var ds=dt.toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+dt.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+      tr.innerHTML='<td>'+ds+'</td><td>'+esc(o.code)+'</td><td>'+fmtB(o.amount)+'</td><td class="pos">'+fmtB(o.commission)+'</td><td>'+esc(o.note||'—')+'</td>';
+      orow.appendChild(tr);
+    });
+
+    // clicks
+    var cr=document.getElementById('clickRows'); cr.innerHTML='';
+    document.getElementById('clickEmpty').style.display=(t.recentClicks&&t.recentClicks.length)?'none':'block';
+    (t.recentClicks||[]).forEach(function(c){
+      var tr=document.createElement('tr');
+      var dt=new Date(c.at); var ds=dt.toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit'})+' '+dt.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      tr.innerHTML='<td>'+ds+'</td><td>'+esc(c.code)+'</td><td>'+esc(c.ip||'—')+'</td>';
+      cr.appendChild(tr);
+    });
+  }
+
+  // record order
+  document.getElementById('orderForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    var code=document.getElementById('oCode').value.trim().toLowerCase();
+    var amount=Number(document.getElementById('oAmount').value);
+    var note=document.getElementById('oNote').value.trim();
+    var msg=document.getElementById('orderMsg');
+    if(!code||!amount||amount<=0){msg.innerHTML='<span style="color:var(--danger);font-size:13px">กรุณากรอกโคท + ยอด</span>';return;}
+    fetch('/api/affiliate/order',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code,amount:amount,note:note})})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(!d.success){msg.innerHTML='<span style="color:var(--danger);font-size:13px">'+esc(d.message||'ผิดพ้ัด')+'</span>';return;}
+        msg.innerHTML='<span style="color:var(--green);font-size:13px;font-weight:700">✅ บันท่ึแล้ว — ค่านอม '+fmtB(d.order.commission)+' / ยอดสะสม '+fmtB(d.balance)+'</span>';
+        document.getElementById('oAmount').value=''; document.getElementById('oNote').value='';
+        load();
+      })
+      .catch(function(){msg.innerHTML='<span style="color:var(--danger);font-size:13px">เชื่่อมต่่อไม่สำเร็จ</span>';});
+  });
+
+  // payout (window-scope for onclick)
+  window.doPayout=function(code){
+    fetch('/api/affiliate/summary',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){
+      var p=(d.partners||[]).find(function(x){return x.code===code;});
+      if(!p){alert('ไม่เจอพาร์ทเนอร');return;}
+      var amt=prompt('จ่ายค่านอม '+fmtB(p.balance)+' ให่ '+p.name+'?\nกรอกจำนวน (บาท):', p.balance);
+      if(amt===null) return;
+      amt=Number(amt); if(!(amt>0)||amt>p.balance){alert('จำนวนไม่ถ่กตอง (0–'+p.balance+')');return;}
+      var method=prompt('วธีจ่าย (transfer/line/credit):','transfer')||'transfer';
+      fetch('/api/affiliate/payout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code,amount:amt,method:method})})
+        .then(function(r){return r.json();})
+        .then(function(dd){
+          if(!dd.success){alert('ผิดพ้ัด: '+(dd.message||''));return;}
+          alert('✅ จ่าย '+fmtB(amt)+' แล้ว — เหลือ '+fmtB(dd.balance));
+          load();
+        })
+        .catch(function(){alert('เชื่่อมต่่อไม่สำเร็จ');});
+    });
+  };
+
+  load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "slug": "affiliate-admin",
+  "title": "Affiliate Admin Console (Owner only)",
+  "description": "หน้่บรหาร Affiliate: บันทิง order, ปลอยคาอม, ดุดูพารทเนอรท / click / order",
+  "author": {
+    "name": "NCT Owner",
+    "email": "0deathwolf@gmail.com",
+    "picture": ""
+  },
+  "originalFileName": "affiliate-admin.html",
+  "fileType": "html",
+  "space": "System",
+  "visibility": "self",
+  "createdAt": "2026-10-10T10:00:00.000Z",
+  "sizeBytes": 14263,
+  "fileCount": 1
+}
