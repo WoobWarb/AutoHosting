@@ -224,7 +224,11 @@ app.post('/api/webhook/deploy', express.raw({ type: '*/*', limit: '5mb' }), (req
 
   console.log('🔄 Webhook received: Pulling latest changes from GitHub...');
 
-  exec('git pull origin main && npm install --production && pm2 restart html-uploader', { cwd: __dirname }, (error, stdout, stderr) => {
+  // Robust deploy: reset --hard to origin/main discards local tracked edits
+  // (e.g. view-count bumps in .metadata.json that the server writes on the VPS),
+  // which otherwise make a plain `git pull` fail and silently skip the deploy.
+  // Untracked projects uploaded via the web interface are NOT removed by reset.
+  exec('git fetch origin main && git reset --hard origin/main && npm install --production && pm2 restart html-uploader', { cwd: __dirname }, (error, stdout, stderr) => {
     if (error) {
       console.error(`Auto Deploy Error: ${error.message}`);
       return res.status(500).json({ success: false, message: error.message, stderr });
