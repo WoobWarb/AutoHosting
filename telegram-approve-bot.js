@@ -83,14 +83,14 @@ async function dash(method, urlPath, body) {
 // ---------- resolve a target (numeric id or @username) ----------
 function resolveTarget(v) {
   if (!v) return { id: null };
-  const s = String(v).trim();
+  let s = String(v).trim();
   if (/^\d+$/.test(s)) return { id: parseInt(s, 10) };
-  if (s.startsWith('@')) {
-    const u = s.toLowerCase();
-    if (usernameIds[u]) return { id: usernameIds[u] };
-    return { id: null, unknown: u };
-  }
-  return { id: null };
+  // Accept usernames entered with or without a leading '@' (also t.me/ links)
+  s = s.replace(/^https?:\/\/t\.me\//i, '');
+  if (!s.startsWith('@')) s = '@' + s;
+  const u = s.toLowerCase();
+  if (usernameIds[u]) return { id: usernameIds[u] };
+  return { id: null, unknown: u };
 }
 
 // ---------- notify owner ----------
