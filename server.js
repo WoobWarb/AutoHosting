@@ -100,6 +100,7 @@ async function requireAuth(req, res, next) {
       if (rec) user = { email: idPart, name: rec.name || idPart.slice(5), passUser: true, admin: !!rec.admin };
     }
   }
+  if (!user) user = userFromSessionCookie(req);
   if (!user) {
     return res.status(401).json({ success: false, message: 'Authentication required. Please sign in (Google or ID/Pass).' });
   }
@@ -121,6 +122,7 @@ async function softAuth(req, res, next) {
       if (rec) user = { email: idPart, name: rec.name || idPart.slice(5), passUser: true, admin: !!rec.admin };
     }
   }
+  if (!user) user = userFromSessionCookie(req);
   req.authUser = user;
   next();
 }
@@ -179,6 +181,20 @@ function getSessionEmail(req) {
   } catch (e) {
     return null;
   }
+}
+
+// Fallback identity from the signed nct_session cookie. The raw Google ID token
+// expires after ~1h, but this cookie lasts 12h, so it keeps the user recognized
+// (and admins able to see private projects) past the token's lifetime.
+function userFromSessionCookie(req) {
+  const email = getSessionEmail(req);
+  if (!email) return null;
+  if (email.startsWith('pass:')) {
+    const rec = PASS_USERS[email.slice(5)];
+    if (rec) return { email, name: rec.name || email.slice(5), passUser: true, admin: !!rec.admin };
+    return null;
+  }
+  return { email, name: email.split('@')[0], cookieSession: true };
 }
 
 
@@ -243,6 +259,70 @@ const PROJECTS_DIR = path.join(__dirname, 'projects');
 const TEMP_DIR = path.join(__dirname, 'temp_uploads');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
+// ---- Access control for private projects ----
+// Anyone can request access to a private project (no login required). The project
+// owner or an admin approves it from the dashboard, which produces a signed access
+// link valid for 24 hours (?ac=slug|contact|expiry|sig).
+const ACCESS_FILE = path.join(__dirname, 'access_control.json');
+const ACCESS_TTL_MS = 24 * 60 * 60 * 1000; // 24-hour access grant
+let ACCESS_DB = { requests: [], grants: [] };
+function loadAccessDb() {
+  try {
+    if (fs.existsSync(ACCESS_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(ACCESS_FILE, 'utf8'));
+      ACCESS_DB = {
+        requests: Array.isArray(raw.requests) ? raw.requests : [],
+        grants: Array.isArray(raw.grants) ? raw.grants : []
+      };
+    }
+  } catch (e) {}
+}
+function saveAccessDb() {
+  try { fs.writeFileSync(ACCESS_FILE, JSON.stringify(ACCESS_DB, null, 2)); } catch (e) {}
+}
+loadAccessDb();
+function normalizeContact(v) { return String(v || '').trim().toLowerCase(); }
+function normEmail(v) { return String(v || '').trim().toLowerCase().replace(/^pass:/, ''); }
+function hasActiveGrant(slug, contact) {
+  const c = normalizeContact(contact);
+  if (!c) return false;
+  const now = Date.now();
+  return ACCESS_DB.grants.some(g => g.slug === slug && normalizeContact(g.contact) === c && g.expiresAt > now);
+}
+// Token format: <base64url(payload)>.<hex sig> where payload = slug|contact|expiry.
+// base64url avoids '|' and other chars Telegram auto-linking truncates, so the link
+// survives copy/paste and inline preview. Legacy 'a|b|c|d' tokens still verify.
+function createAccessLink(slug, contact) {
+  const expiry = Date.now() + ACCESS_TTL_MS;
+  const payload = slug + '|' + normalizeContact(contact) + '|' + expiry;
+  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
+  return Buffer.from(payload, 'utf8').toString('base64url') + '.' + sig;
+}
+function verifyAccessToken(raw) {
+  if (!raw) return null;
+  try {
+    let parts;
+    const rawStr = String(raw);
+    const dot = rawStr.lastIndexOf('.');
+    if (dot > 0 && /^[A-Za-z0-9_-]+$/.test(rawStr.slice(0, dot))) {
+      const payload = Buffer.from(rawStr.slice(0, dot), 'base64url').toString('utf8');
+      parts = payload.split('|').concat([rawStr.slice(dot + 1)]);
+    } else {
+      parts = rawStr.split('|');
+    }
+    if (parts.length !== 4) return null;
+    const slug = parts[0], contact = parts[1], expiry = parts[2], sig = parts[3];
+    if (!slug || !contact || !expiry || !sig) return null;
+    if (Date.now() > parseInt(expiry, 10)) return null;
+    const expected = crypto.createHmac('sha256', SESSION_SECRET).update(slug + '|' + contact + '|' + expiry).digest('hex');
+    // Stateful check: the grant must still exist (revoke removes it)
+    if (!ACCESS_DB.grants.some(g => g.slug === slug && normalizeContact(g.contact) === normalizeContact(contact) && g.expiresAt === parseInt(expiry, 10))) return null;
+    const sigBuf = Buffer.from(sig); const expBuf = Buffer.from(expected);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
+    return { slug, contact, expiry };
+  } catch (e) { return null; }
+}
+
 // Ensure required directories exist
 [PROJECTS_DIR, TEMP_DIR, PUBLIC_DIR].forEach((dir) => {
   if (!fs.existsSync(dir)) {
@@ -273,6 +353,148 @@ app.post('/api/pass/login', (req, res) => {
     maxAge: 12 * 60 * 60 * 1000
   });
   res.json({ success: true, token, name: user.name });
+});
+
+
+// ---- Access control endpoints (private projects, 24h grants) ----
+
+// Anyone (no login) can request access to a private project.
+app.post('/api/access/request', (req, res) => {
+  const slug = String((req.body && req.body.slug) || '').trim();
+  const name = String((req.body && req.body.name) || '').trim();
+  const contact = String((req.body && req.body.contact) || '').trim();
+  const note = String((req.body && req.body.note) || '').trim().slice(0, 500);
+  if (!slug || !name || !contact) {
+    return res.status(400).json({ success: false, message: 'Name and contact (email/phone) are required.' });
+  }
+  const projectDir = path.join(PROJECTS_DIR, slug);
+  if (!fs.existsSync(projectDir) || !fs.statSync(projectDir).isDirectory()) {
+    return res.status(404).json({ success: false, message: 'Project not found.' });
+  }
+  const metaPath = path.join(projectDir, '.metadata.json');
+  let meta = {};
+  if (fs.existsSync(metaPath)) { try { meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch (e) {} }
+  if (meta.archived) return res.status(410).json({ success: false, message: 'This project has been archived.' });
+  if ((meta.visibility || 'public') !== 'private') {
+    return res.status(400).json({ success: false, message: 'This project does not require an access request.' });
+  }
+  if (hasActiveGrant(slug, contact)) {
+    return res.json({ success: true, hasAccess: true, message: 'You already have active access to this project.' });
+  }
+  const cEmail = normalizeContact(contact);
+  const pending = ACCESS_DB.requests.find(r => r.slug === slug && r.status === 'pending' && normalizeContact(r.contact) === cEmail);
+  if (pending) {
+    return res.json({ success: true, hasAccess: false, message: 'Your request is already pending approval. You will be contacted once it is approved.' });
+  }
+  const reqId = crypto.randomBytes(6).toString('hex');
+  ACCESS_DB.requests.push({
+    id: reqId, slug, name, contact, note,
+    ownerEmail: (meta.author && meta.author.email) ? meta.author.email.toLowerCase() : '',
+    telegramId: meta.telegramId || '',
+    requestedAt: Date.now(), status: 'pending'
+  });
+  saveAccessDb();
+  res.json({ success: true, hasAccess: false, message: 'Access request sent. You will be able to open the project once the owner approves it (access lasts 24 hours).' });
+});
+
+// Check whether a contact already has an active grant or a pending request.
+app.get('/api/access/status', (req, res) => {
+  const slug = String(req.query.slug || '').trim();
+  const contact = String(req.query.contact || '').trim();
+  const cEmail = normalizeContact(contact);
+  if (!slug || !cEmail) return res.json({ success: true, hasAccess: false, pending: false });
+  res.json({
+    success: true,
+    hasAccess: hasActiveGrant(slug, contact),
+    pending: ACCESS_DB.requests.some(r => r.slug === slug && r.status === 'pending' && normalizeContact(r.contact) === cEmail)
+  });
+});
+
+// Owner/admin: list pending requests + active grants for projects they can manage.
+app.get('/api/access/list', requireAuth, (req, res) => {
+  const email = (req.authUser && req.authUser.email) || '';
+  const admin = isAdmin(email);
+  const ownerEmail = normEmail(email);
+  const projectOwner = (slug) => {
+    const metaPath = path.join(PROJECTS_DIR, slug, '.metadata.json');
+    if (!fs.existsSync(metaPath)) return '';
+    try { const m = JSON.parse(fs.readFileSync(metaPath, 'utf8')); return (m.author && m.author.email) ? m.author.email.toLowerCase() : ''; } catch (e) { return ''; }
+  };
+  const canSee = (slug) => admin || projectOwner(slug) === ownerEmail;
+  const now = Date.now();
+  const requests = ACCESS_DB.requests.filter(r => canSee(r.slug)).sort((a, b) => b.requestedAt - a.requestedAt);
+  const grants = ACCESS_DB.grants.filter(g => canSee(g.slug) && g.expiresAt > now).sort((a, b) => b.approvedAt - a.approvedAt);
+  res.json({ success: true, requests, grants, admin });
+});
+
+// Owner/admin: approve a pending request -> creates a 24h signed access link.
+app.post('/api/access/approve', requireAuth, (req, res) => {
+  const email = (req.authUser && req.authUser.email) || '';
+  const admin = isAdmin(email);
+  const reqId = String((req.body && req.body.requestId) || '').trim();
+  const accessReq = ACCESS_DB.requests.find(r => r.id === reqId && r.status === 'pending');
+  if (!accessReq) return res.status(404).json({ success: false, message: 'Request not found (or already processed).' });
+  const metaPath = path.join(PROJECTS_DIR, accessReq.slug, '.metadata.json');
+  let ownerEmail = '';
+  if (fs.existsSync(metaPath)) { try { const m = JSON.parse(fs.readFileSync(metaPath, 'utf8')); ownerEmail = (m.author && m.author.email) ? m.author.email.toLowerCase() : ''; } catch (e) {} }
+  if (!admin && ownerEmail !== normEmail(email)) {
+    return res.status(403).json({ success: false, message: 'Only the project owner or an admin can approve this request.' });
+  }
+  const now = Date.now();
+  ACCESS_DB.grants.push({
+    slug: accessReq.slug, name: accessReq.name, contact: accessReq.contact,
+    approvedBy: email, approvedAt: now, expiresAt: now + ACCESS_TTL_MS
+  });
+  accessReq.status = 'approved';
+  accessReq.approvedAt = now;
+  ACCESS_DB.requests.forEach(r => {
+    if (r.slug === accessReq.slug && r.status === 'pending' && normalizeContact(r.contact) === normalizeContact(accessReq.contact)) {
+      r.status = 'approved'; r.approvedAt = now;
+    }
+  });
+  saveAccessDb();
+  const base = process.env.PUBLIC_BASE_URL || 'https://html.nctprosperatech.com';
+  const shareUrl = base + '/' + accessReq.slug + '/?ac=' + createAccessLink(accessReq.slug, accessReq.contact);
+  res.json({ success: true, message: 'Approved. The requester can access the project for 24 hours.', expiresAt: now + ACCESS_TTL_MS, shareUrl });
+});
+
+// Owner/admin: deny a pending request.
+app.post('/api/access/deny', requireAuth, (req, res) => {
+  const email = (req.authUser && req.authUser.email) || '';
+  const admin = isAdmin(email);
+  const reqId = String((req.body && req.body.requestId) || '').trim();
+  const accessReq = ACCESS_DB.requests.find(r => r.id === reqId && r.status === 'pending');
+  if (!accessReq) return res.status(404).json({ success: false, message: 'Request not found (or already processed).' });
+  const metaPath = path.join(PROJECTS_DIR, accessReq.slug, '.metadata.json');
+  let ownerEmail = '';
+  if (fs.existsSync(metaPath)) { try { const m = JSON.parse(fs.readFileSync(metaPath, 'utf8')); ownerEmail = (m.author && m.author.email) ? m.author.email.toLowerCase() : ''; } catch (e) {} }
+  if (!admin && ownerEmail !== normEmail(email)) {
+    return res.status(403).json({ success: false, message: 'Only the project owner or an admin can process this request.' });
+  }
+  accessReq.status = 'denied';
+  req.processedAt = Date.now();
+  saveAccessDb();
+  res.json({ success: true, message: 'Request denied.' });
+});
+
+// Owner/admin: revoke an active grant early.
+app.post('/api/access/revoke', requireAuth, (req, res) => {
+  const email = (req.authUser && req.authUser.email) || '';
+  const admin = isAdmin(email);
+  const slug = String((req.body && req.body.slug) || '').trim();
+  const contact = String((req.body && req.body.contact) || '').trim();
+  if (!slug || !contact) return res.status(400).json({ success: false, message: 'slug and contact are required.' });
+  const metaPath = path.join(PROJECTS_DIR, slug, '.metadata.json');
+  let ownerEmail = '';
+  if (fs.existsSync(metaPath)) { try { const m = JSON.parse(fs.readFileSync(metaPath, 'utf8')); ownerEmail = (m.author && m.author.email) ? m.author.email.toLowerCase() : ''; } catch (e) {} }
+  if (!admin && ownerEmail !== normEmail(email)) {
+    return res.status(403).json({ success: false, message: 'Only the project owner or an admin can revoke access.' });
+  }
+  const cEmail = normalizeContact(contact);
+  const before = ACCESS_DB.grants.length;
+  ACCESS_DB.grants = ACCESS_DB.grants.filter(g => !(g.slug === slug && normalizeContact(g.contact) === cEmail));
+  saveAccessDb();
+  res.json({ success: true, message: 'Access revoked.', removed: before - ACCESS_DB.grants.length });
 });
 
 app.use(express.urlencoded({ extended: true }));
@@ -538,6 +760,7 @@ app.get('/api/projects', softAuth, (req, res) => {
           author,
           space: metadata.space || 'General',
           visibility: metadata.visibility || 'public',
+          telegramId: metadata.telegramId || '',
           archived,
           viewsCount: metadata.viewsCount || 0,
           url: `/${slug}/${hasIndexHtml ? '' : mainFile}`,
@@ -749,6 +972,7 @@ app.post('/api/upload', requireAuth, upload.single('file'), (req, res) => {
       description: finalDescription || 'No description provided.',
       space: space || 'General',
       visibility,
+      telegramId: String(req.body.telegramId || '').trim(),
       archived: false,
       viewsCount: 0,
       author: {
@@ -855,6 +1079,7 @@ app.post('/api/upload-code', requireAuth, (req, res) => {
       description: finalDescription || 'No description provided.',
       space: space || 'General',
       visibility,
+      telegramId: String(req.body.telegramId || '').trim(),
       archived: false,
       viewsCount: 0,
       author: {
@@ -987,6 +1212,7 @@ app.post('/api/projects/:slug/update', requireAuth, upload.single('file'), (req,
     if (req.body.description !== undefined) metadata.description = req.body.description.trim();
     if (req.body.space) metadata.space = req.body.space.trim();
     if (['public', 'private', 'self'].includes(req.body.visibility)) metadata.visibility = req.body.visibility;
+    if (req.body.telegramId !== undefined) metadata.telegramId = String(req.body.telegramId).trim();
     metadata.updatedAt = new Date().toISOString();
 
     const stats = getFolderStats(targetPath);
@@ -1148,6 +1374,7 @@ app.put('/api/projects/:slug', requireAuth, (req, res) => {
     if (req.body.description !== undefined) metadata.description = req.body.description.trim();
     if (req.body.space) metadata.space = req.body.space.trim();
     if (['public', 'private', 'self'].includes(req.body.visibility)) metadata.visibility = req.body.visibility;
+    if (req.body.telegramId !== undefined) metadata.telegramId = String(req.body.telegramId).trim();
     metadata.updatedAt = new Date().toISOString();
 
     fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2));
@@ -1498,7 +1725,7 @@ function resolveProjectRequest(reqPath) {
   }
   if (!fs.existsSync(targetFile) || fs.statSync(targetFile).isDirectory()) return null;
 
-  return { projectDir, subPath, targetFile };
+  return { projectDir, subPath, targetFile, slug };
 }
 
 app.use((req, res, next) => {
@@ -1534,6 +1761,22 @@ app.use((req, res, next) => {
       return res.status(403).send('<h1>403 — Private Project</h1><p>You do not have access to view this project.</p>');
     }
   }
+
+    // "private" visibility: owner/admin, or a holder of a valid 24h access link (?ac=token)
+    if ((meta.visibility || 'public') === 'private') {
+      const gateSlug = resolved.slug;
+      const sessionEmail = getSessionEmail(req);
+      const ownerEmail = (meta.author && meta.author.email) ? meta.author.email.toLowerCase() : '';
+      const isOwnerOrAdmin = sessionEmail && (sessionEmail.toLowerCase() === ownerEmail || isAdmin(sessionEmail));
+      let allowed = !!isOwnerOrAdmin;
+      if (!allowed) {
+        const ac = verifyAccessToken(req.query && req.query.ac);
+        if (ac && ac.slug === gateSlug) allowed = true;
+      }
+      if (!allowed) {
+        return res.redirect(302, '/private-gate.html?slug=' + encodeURIComponent(gateSlug) + '&title=' + encodeURIComponent(meta.title || meta.displayName || gateSlug));
+      }
+    }
 
   // Asynchronously track view count on main index access
   if (!subPath || subPath === 'index.html') {

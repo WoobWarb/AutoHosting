@@ -10,3 +10,6 @@ client_secret_*.json
 users.json
 affiliate.json
 server.js.bak.1791598430
+bot.env
+access_control.json
+telegram_ids.json
