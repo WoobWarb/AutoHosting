@@ -292,8 +292,8 @@ function hasActiveGrant(slug, contact) {
 // Token format: <base64url(payload)>.<hex sig> where payload = slug|contact|expiry.
 // base64url avoids '|' and other chars Telegram auto-linking truncates, so the link
 // survives copy/paste and inline preview. Legacy 'a|b|c|d' tokens still verify.
-function createAccessLink(slug, contact) {
-  const expiry = Date.now() + ACCESS_TTL_MS;
+function createAccessLink(slug, contact, expiry) {
+  expiry = expiry || (Date.now() + ACCESS_TTL_MS);
   const payload = slug + '|' + normalizeContact(contact) + '|' + expiry;
   const sig = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
   return Buffer.from(payload, 'utf8').toString('base64url') + '.' + sig;
@@ -454,7 +454,7 @@ app.post('/api/access/approve', requireAuth, (req, res) => {
   });
   saveAccessDb();
   const base = process.env.PUBLIC_BASE_URL || 'https://html.nctprosperatech.com';
-  const shareUrl = base + '/' + accessReq.slug + '/?ac=' + createAccessLink(accessReq.slug, accessReq.contact);
+  const shareUrl = base + '/' + accessReq.slug + '/?ac=' + createAccessLink(accessReq.slug, accessReq.contact, now + ACCESS_TTL_MS);
   res.json({ success: true, message: 'Approved. The requester can access the project for 24 hours.', expiresAt: now + ACCESS_TTL_MS, shareUrl });
 });
 
