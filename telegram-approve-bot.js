@@ -94,17 +94,21 @@ function resolveTarget(v) {
 }
 
 // ---------- notify owner ----------
-async function notifyOwner(req) {
-  // Priority: project's explicit telegramId > owner-email map > admin fallback
+// Shared target list: project's explicit telegramId > owner-email map > admin fallback.
+function targetsFor(req) {
   const resolved = resolveTarget(req.telegramId);
   const emailTg = telegramIds[req.ownerEmail];
-  // notify BOTH the project owner (telegramId / owner email) AND admin
   const targets = [];
   const primary = (resolved && resolved.id) || emailTg;
   if (primary) targets.push(primary);
   if (ADMIN_TG_ID && ADMIN_TG_ID !== primary) targets.push(ADMIN_TG_ID);
   if (!targets.length) targets.push(ADMIN_TG_ID);
-  if (req.telegramId && !resolved.id) {
+  return targets;
+}
+
+async function notifyOwner(req) {
+  const targets = targetsFor(req);
+  if (req.telegramId && !resolveTarget(req.telegramId).id) {
     console.warn('could not resolve telegramId', req.telegramId, '-> admin only');
   }
   const lines = [
@@ -222,11 +226,18 @@ async function handleUpdate(u) {
     if (action === 'approve') {
       const result = await dash('POST', '/api/access/approve', { requestId: reqId });
       if (result.success) {
+        const approvedText = '✅ Approved ' + req.slug + '\n\nSend this link to ' + req.name + ' (valid 24h):\n' + result.shareUrl;
         await tg('editMessageText', {
           chat_id: cb.message.chat.id, message_id: cb.message.message_id,
-          text: '✅ Approved ' + req.slug + '\n\nSend this link to ' + req.name + ' (valid 24h):\n' + result.shareUrl
+          text: approvedText
         });
-        console.log('approved', reqId, 'by', fromId);
+        // Mirror the share link to every other notification target (owner + admin)
+        // so the admin always receives the link even when the owner pressed the button.
+        const others = targetsFor(req).filter(id => id !== cb.message.chat.id);
+        for (const chatId of others) {
+          await tg('sendMessage', { chat_id: chatId, text: approvedText + '\n(approved by user ' + fromId + ')' });
+        }
+        console.log('approved', reqId, 'by', fromId, '-> mirrored to', others.join(',') || '(none)');
       } else {
         await tg('answerCallbackQuery', { callback_query_id: cb.id, text: 'Approve failed: ' + (result.error || 'unknown') });
       }
