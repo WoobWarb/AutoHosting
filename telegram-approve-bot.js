@@ -116,6 +116,7 @@ async function notifyOwner(req) {
     '',
     'Project: ' + req.slug,
     'Name: ' + req.name,
+    'Company: ' + (req.company || '-'),
     'Contact: ' + req.contact
   ];
   if (req.note) lines.push('Note: ' + req.note);

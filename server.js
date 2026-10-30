@@ -362,10 +362,11 @@ app.post('/api/pass/login', (req, res) => {
 app.post('/api/access/request', (req, res) => {
   const slug = String((req.body && req.body.slug) || '').trim();
   const name = String((req.body && req.body.name) || '').trim();
+  const company = String((req.body && req.body.company) || '').trim().slice(0, 120);
   const contact = String((req.body && req.body.contact) || '').trim();
   const note = String((req.body && req.body.note) || '').trim().slice(0, 500);
-  if (!slug || !name || !contact) {
-    return res.status(400).json({ success: false, message: 'Name and contact (email/phone) are required.' });
+  if (!slug || !name || !company || !contact) {
+    return res.status(400).json({ success: false, message: 'Name, company and contact (email/phone) are required.' });
   }
   const projectDir = path.join(PROJECTS_DIR, slug);
   if (!fs.existsSync(projectDir) || !fs.statSync(projectDir).isDirectory()) {
@@ -388,7 +389,7 @@ app.post('/api/access/request', (req, res) => {
   }
   const reqId = crypto.randomBytes(6).toString('hex');
   ACCESS_DB.requests.push({
-    id: reqId, slug, name, contact, note,
+    id: reqId, slug, name, company, contact, note,
     ownerEmail: (meta.author && meta.author.email) ? meta.author.email.toLowerCase() : '',
     telegramId: meta.telegramId || '',
     requestedAt: Date.now(), status: 'pending'
